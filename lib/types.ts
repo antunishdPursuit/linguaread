@@ -20,10 +20,19 @@ export type LanguageResult = {
 
 export type VocabularyEntry = Pick<
   LanguageResult,
-  'id' | 'sourceWord' | 'mandarin' | 'pinyin' | 'shortMeaning' | 'cefr'
+  | 'id'
+  | 'sourceWord'
+  | 'displayWord'
+  | 'mandarin'
+  | 'pinyin'
+  | 'shortMeaning'
+  | 'cefr'
+  | 'action'
 >;
 
 export type VocabularyState = {
   learning: VocabularyEntry[];
   known: VocabularyEntry[];
 };
+
+export type VocabularyList = keyof VocabularyState;
