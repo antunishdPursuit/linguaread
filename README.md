@@ -1,50 +1,69 @@
 # LinguaRead
 
-LinguaRead is a draft Chrome extension for Mandarin-speaking international students reading English PDFs at a fixed B2 level.
+LinguaRead is a PDF-first Chrome reading aid that helps Mandarin-speaking international students understand difficult English words without translating the entire document.
 
-The first build will:
+## The problem
 
-- open a text-based PDF in a LinguaRead viewer;
-- keep B2-or-lower words in English;
-- try a clear B2-or-lower English synonym for a harder word;
-- use Simplified Chinese when no safe synonym fits;
-- show a quick view on hover and a full card on double-click;
-- keep Learning and Known Words in Chrome's native side panel.
+International students may understand most of an English academic PDF but still lose their place when a few unfamiliar words interrupt their reading. Looking up each word in another application breaks concentration. Translating the complete document removes too much English and gives the student less opportunity to practice reading it.
 
-## Current status
+## The LinguaRead approach
 
-- Dennis and Ji approved the current product plan.
-- The first local Chrome build now includes the PDF picker, page-one viewer, mock word change, hover card, double-click card, and native side panel.
-- The code check, three mock-language tests, and production build pass.
-- Loading and checking the unpacked build in Dennis Chrome is the next step.
-- The first local layout-test file is `MIT CASE - Ferrari 2025.pdf`.
-- The test PDF stays local and is not committed, shared with testers, or used in a public changed-text demo, avoiding a possible conflict with its no-derivatives term.
-- Dennis and the project team own the PDF reader, word rules, side panel, backend, and integration.
-- Test users will check the full reading flow and word choices.
-- The free language services are deferred. This build uses mock data only and is not the full MVP language system.
+LinguaRead keeps the original English PDF visible and adds focused help only where it may be useful. It marks selected words without rewriting or covering the document.
 
-## Run the first build
+- A teal marker means simpler English help is available.
+- An orange marker means Mandarin help is available.
+- A gold marker means the reader is learning the word.
+- A green marker means the reader marked the word as known.
 
-1. Open `chrome://extensions` in the Dennis Chrome profile.
-2. Turn on Developer mode.
-3. Choose **Load unpacked**.
-4. Select `.output/chrome-mv3` from this repo.
-5. Click the LinguaRead extension icon and choose a local text-based PDF.
-6. Check the word `innovation`: hover for the quick view and double-click for the full card.
-7. Open the Learning and Known Words side panel.
+## How it works
 
-If PDF text splits, shifts, or loses its click target, stop and fix the text layer before adding the language service.
+1. The reader opens a text-based English PDF in LinguaRead.
+2. LinguaRead identifies words that may need support.
+3. The reader hovers over a marked word for a quick explanation.
+4. The reader double-clicks the word for Mandarin, pinyin, a short English meaning, and learning actions.
+5. The reader adds the word to **Learning** or marks it as **Known**.
+6. Both lists remain available in Chrome's side panel for later reading.
 
-## Service direction
+The original English stays in the PDF. LinguaRead provides help around the text instead of replacing the reader's complete English experience.
 
-- Active MVP: Gemini 3.1 Flash-Lite free tier plus Azure Translator F0 behind Cloudflare Workers Free.
-- Paid AI and licensed dictionary data stay outside the MVP.
+## Use LinguaRead
 
-See [docs/mvp-plan.md](docs/mvp-plan.md) for the full build order and [docs/service-plan.md](docs/service-plan.md) for the service rules.
+LinguaRead is being prepared for release through the Chrome Web Store. Once it is available:
 
-## Data and keys
+1. Install LinguaRead from its Chrome Web Store page.
+2. Open the extension and choose a text-based PDF.
+3. Hover over a marked word for quick help.
+4. Double-click the word for the complete word card.
+5. Open **Word lists** to review Learning and Known Words.
 
-- Keep every API key on a backend, never in the Chrome extension.
-- Send only the target sentence or smallest useful text section.
-- Keep the original English when a service fails or the result is not safe.
-- Do not commit PDFs, API keys, or user reading data.
+The Chrome Web Store link will be added after the extension is approved.
+
+## Current limitations
+
+- LinguaRead currently focuses on English and Mandarin at a fixed B2 reading level.
+- It requires a PDF with selectable text. Scanned image-only PDFs are not supported.
+- Website reading, other language pairs, and selectable A1-C2 levels are planned for later versions.
+- Language suggestions are still being validated before the public release.
+
+## Hack Your Summer
+
+LinguaRead is being developed during the 2026 Hack Your Summer program.
+
+The project began with research into challenges faced by international students reading academic English. Dennis and Ji narrowed the idea to a PDF-first experience that supports difficult words while preserving the student's contact with the original English document.
+
+The current goal is to test whether focused word help makes academic reading easier without relying on full-document translation.
+
+## Roadmap
+
+- Complete contextual Mandarin and simpler-English word assistance.
+- Validate language choices with Mandarin-speaking reviewers.
+- Test the complete reading flow with international students.
+- Publish LinguaRead through the Chrome Web Store.
+- Add optional A1-C2 reading levels.
+- Support ordinary websites after the PDF experience is stable.
+
+## Contributors and acknowledgments
+
+- **Dennis** — product development, PDF experience, word interactions, and integration
+- **Ji** — product collaboration and language-learning direction
+- **Hack Your Summer** — program, community, and mentorship support
