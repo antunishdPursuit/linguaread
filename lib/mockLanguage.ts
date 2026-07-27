@@ -119,7 +119,10 @@ export function escapeHtml(value: string): string {
     .replaceAll("'", '&#039;');
 }
 
-export function renderMockText(value: string): string {
+export function renderMockText(
+  value: string,
+  vocabulary?: VocabularyState,
+): string {
   const resultsByWord = new Map(
     MOCK_LANGUAGE_RESULTS.map((result) => [result.sourceWord.toLowerCase(), result]),
   );
@@ -134,7 +137,12 @@ export function renderMockText(value: string): string {
 
     const actionClass =
       result.action === 'use_mandarin' ? 'is-mandarin' : 'is-synonym';
+    const listClass = vocabulary?.learning.some((entry) => entry.id === result.id)
+      ? 'is-learning'
+      : vocabulary?.known.some((entry) => entry.id === result.id)
+        ? 'is-known'
+        : '';
 
-    return `<span class="linguaread-word ${actionClass}" data-linguaread-word="${escapeHtml(result.sourceWord)}" data-linguaread-id="${escapeHtml(result.id)}" tabindex="0" role="button" aria-label="${escapeHtml(result.sourceWord)} changed to ${escapeHtml(result.displayWord)}">${escapeHtml(result.displayWord)}</span>`;
+    return `<span class="linguaread-word ${actionClass} ${listClass}" data-linguaread-word="${escapeHtml(result.sourceWord)}" data-linguaread-id="${escapeHtml(result.id)}" tabindex="0" role="button" aria-label="${escapeHtml(result.sourceWord)} changed to ${escapeHtml(result.displayWord)}">${escapeHtml(result.displayWord)}</span>`;
   });
 }

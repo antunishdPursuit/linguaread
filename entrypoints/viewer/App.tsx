@@ -6,8 +6,21 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import {
   MOCK_LANGUAGE_RESULTS,
   renderMockText,
+  toVocabularyEntry,
 } from '../../lib/mockLanguage';
-import type { LanguageResult } from '../../lib/types';
+import type {
+  LanguageResult,
+  VocabularyList,
+  VocabularyState,
+} from '../../lib/types';
+import {
+  EMPTY_VOCABULARY_STATE,
+  moveVocabularyEntry,
+  readVocabularyState,
+  subscribeToVocabularyState,
+  vocabularyListFor,
+  writeVocabularyState,
+} from '../../lib/vocabularyStorage';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -30,6 +43,10 @@ function App() {
   const [extractedWords, setExtractedWords] = useState(0);
   const [viewerWidth, setViewerWidth] = useState(760);
   const [activeCard, setActiveCard] = useState<ActiveCard | null>(null);
+  const [vocabulary, setVocabulary] = useState<VocabularyState>(
+    EMPTY_VOCABULARY_STATE,
+  );
+  const [statusMessage, setStatusMessage] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -42,6 +59,13 @@ function App() {
 
     observer.observe(element);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    void readVocabularyState()
+      .then(setVocabulary)
+      .catch(() => setError('LinguaRead could not load your saved word lists.'));
+    return subscribeToVocabularyState(setVocabulary);
   }, []);
 
   const handleFile = useCallback((nextFile?: File) => {
@@ -112,6 +136,30 @@ function App() {
   const synonymCount = MOCK_LANGUAGE_RESULTS.filter(
     (result) => result.action === 'use_synonym',
   ).length;
+
+  const moveActiveWord = async (destination: VocabularyList) => {
+    if (!activeCard) return;
+    const entry = toVocabularyEntry(activeCard.result);
+    const nextState = moveVocabularyEntry(vocabulary, entry, destination);
+    setVocabulary(nextState);
+    setStatusMessage(
+      `${entry.sourceWord} moved to ${
+        destination === 'learning' ? 'Learning' : 'Known Words'
+      }.`,
+    );
+
+    try {
+      await writeVocabularyState(nextState);
+    } catch {
+      setVocabulary(vocabulary);
+      setStatusMessage('');
+      setError('LinguaRead could not save that word. Try again.');
+    }
+  };
+
+  const activeList = activeCard
+    ? vocabularyListFor(vocabulary, activeCard.result.id)
+    : null;
 
   return (
     <main className="app-shell">
@@ -186,10 +234,17 @@ function App() {
             <i /> {synonymCount} simpler synonyms
           </span>
           <span className="legend-item known">
-            <i /> Known
+            <i /> {vocabulary.known.length} known
+          </span>
+          <span className="legend-item learning">
+            <i /> {vocabulary.learning.length} learning
           </span>
         </div>
       </section>
+
+      <p className="sr-only" aria-live="polite">
+        {statusMessage}
+      </p>
 
       {error && (
         <p className="error-message" role="alert">
@@ -252,7 +307,7 @@ function App() {
             <Page
               pageNumber={1}
               width={viewerWidth}
-              customTextRenderer={({ str }) => renderMockText(str)}
+              customTextRenderer={({ str }) => renderMockText(str, vocabulary)}
               onGetTextSuccess={({ items }) => {
                 const text = items
                   .filter((item): item is typeof item & { str: string } => 'str' in item)
@@ -293,8 +348,20 @@ function App() {
             <>
               <p className="word-meaning">{activeCard.result.shortMeaning}</p>
               <div className="card-actions">
-                <button className="primary-button">Add to Learning</button>
-                <button className="text-button">Mark as Known</button>
+                <button
+                  className={`primary-button ${activeList === 'learning' ? 'selected' : ''}`}
+                  disabled={activeList === 'learning'}
+                  onClick={() => void moveActiveWord('learning')}
+                >
+                  {activeList === 'learning' ? 'In Learning' : 'Add to Learning'}
+                </button>
+                <button
+                  className={`text-button ${activeList === 'known' ? 'selected' : ''}`}
+                  disabled={activeList === 'known'}
+                  onClick={() => void moveActiveWord('known')}
+                >
+                  {activeList === 'known' ? 'In Known Words' : 'Mark as Known'}
+                </button>
               </div>
             </>
           )}

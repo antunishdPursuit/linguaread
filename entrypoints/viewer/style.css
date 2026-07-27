@@ -269,6 +269,10 @@ button:focus-visible,
   color: var(--green);
 }
 
+.legend-item.learning {
+  color: var(--gold);
+}
+
 .error-message {
   margin-top: 12px;
   padding: 12px 14px;
@@ -361,6 +365,17 @@ button:focus-visible,
   background: #f7e5dd;
 }
 
+.linguaread-word.is-learning {
+  box-shadow: inset 0 -3px #d2a938;
+}
+
+.linguaread-word.is-known {
+  color: #346f50;
+  background: #deeee3;
+  box-shadow: inset 0 -3px #6ca37e;
+  text-decoration: none;
+}
+
 .word-card {
   position: fixed;
   z-index: 50;
@@ -443,6 +458,32 @@ button:focus-visible,
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.primary-button:disabled,
+.text-button:disabled {
+  cursor: default;
+}
+
+.primary-button.selected {
+  border-color: #8a6b1d;
+  background: #8a6b1d;
+}
+
+.text-button.selected {
+  color: #346f50;
+  text-decoration: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 @media (max-width: 980px) {

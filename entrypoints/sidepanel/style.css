@@ -242,6 +242,34 @@ p {
   font-size: 12px;
 }
 
+.move-button {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid #c9bda9;
+  border-radius: 5px;
+  color: #65584a;
+  background: #f1eadf;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.move-button:hover {
+  border-color: var(--orange);
+  color: #8d3f2e;
+  background: #f8e5de;
+}
+
+.panel-error {
+  padding: 10px;
+  border: 1px solid #c97c6b;
+  border-radius: 6px;
+  color: #7c2f21;
+  background: #fbe7e1;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .empty-state {
   padding: 34px 16px;
   border: 1px dashed #bfb5a6;

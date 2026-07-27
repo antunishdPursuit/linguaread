@@ -1,10 +1,28 @@
-import { useMemo, useState } from 'react';
-import { MOCK_VOCABULARY } from '../../lib/mockLanguage';
-import type { VocabularyEntry } from '../../lib/types';
+import { useEffect, useMemo, useState } from 'react';
+import type {
+  VocabularyEntry,
+  VocabularyList,
+  VocabularyState,
+} from '../../lib/types';
+import {
+  EMPTY_VOCABULARY_STATE,
+  moveVocabularyEntry,
+  readVocabularyState,
+  subscribeToVocabularyState,
+  writeVocabularyState,
+} from '../../lib/vocabularyStorage';
 
 type PanelTab = 'learning' | 'known';
 
-function WordList({ entries }: { entries: VocabularyEntry[] }) {
+function WordList({
+  entries,
+  tab,
+  onMove,
+}: {
+  entries: VocabularyEntry[];
+  tab: PanelTab;
+  onMove: (entry: VocabularyEntry, destination: VocabularyList) => void;
+}) {
   if (!entries.length) {
     return (
       <div className="empty-state">
@@ -28,6 +46,14 @@ function WordList({ entries }: { entries: VocabularyEntry[] }) {
           </div>
           <p className="pinyin">{entry.pinyin}</p>
           <p className="meaning">{entry.shortMeaning}</p>
+          <button
+            className="move-button"
+            onClick={() =>
+              onMove(entry, tab === 'learning' ? 'known' : 'learning')
+            }
+          >
+            Move to {tab === 'learning' ? 'Known Words' : 'Learning'}
+          </button>
         </li>
       ))}
     </ul>
@@ -37,8 +63,21 @@ function WordList({ entries }: { entries: VocabularyEntry[] }) {
 function App() {
   const [tab, setTab] = useState<PanelTab>('learning');
   const [query, setQuery] = useState('');
+  const [vocabulary, setVocabulary] = useState<VocabularyState>(
+    EMPTY_VOCABULARY_STATE,
+  );
+  const [statusMessage, setStatusMessage] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    void readVocabularyState()
+      .then(setVocabulary)
+      .catch(() => setError('LinguaRead could not load your saved words.'));
+    return subscribeToVocabularyState(setVocabulary);
+  }, []);
+
   const entries =
-    tab === 'learning' ? MOCK_VOCABULARY.learning : MOCK_VOCABULARY.known;
+    tab === 'learning' ? vocabulary.learning : vocabulary.known;
   const filteredEntries = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return entries;
@@ -49,6 +88,28 @@ function App() {
       ),
     );
   }, [entries, query]);
+
+  const moveWord = async (
+    entry: VocabularyEntry,
+    destination: VocabularyList,
+  ) => {
+    const nextState = moveVocabularyEntry(vocabulary, entry, destination);
+    setVocabulary(nextState);
+    setStatusMessage(
+      `${entry.sourceWord} moved to ${
+        destination === 'learning' ? 'Learning' : 'Known Words'
+      }.`,
+    );
+    setError('');
+
+    try {
+      await writeVocabularyState(nextState);
+    } catch {
+      setVocabulary(vocabulary);
+      setStatusMessage('');
+      setError('LinguaRead could not save that change. Try again.');
+    }
+  };
 
   return (
     <main className="panel-shell">
@@ -70,7 +131,7 @@ function App() {
           className={tab === 'learning' ? 'active' : ''}
           onClick={() => setTab('learning')}
         >
-          Learning <span>{MOCK_VOCABULARY.learning.length}</span>
+          Learning <span>{vocabulary.learning.length}</span>
         </button>
         <button
           role="tab"
@@ -78,7 +139,7 @@ function App() {
           className={tab === 'known' ? 'active' : ''}
           onClick={() => setTab('known')}
         >
-          Known Words <span>{MOCK_VOCABULARY.known.length}</span>
+          Known Words <span>{vocabulary.known.length}</span>
         </button>
       </div>
 
@@ -97,7 +158,16 @@ function App() {
         {filteredEntries.length === 1 ? 'word' : 'words'}
       </p>
 
-      <WordList entries={filteredEntries} />
+      <p className="sr-only" aria-live="polite">
+        {statusMessage}
+      </p>
+      {error && (
+        <p className="panel-error" role="alert">
+          {error}
+        </p>
+      )}
+
+      <WordList entries={filteredEntries} tab={tab} onMove={moveWord} />
     </main>
   );
 }
