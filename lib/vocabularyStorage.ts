@@ -64,7 +64,21 @@ function normalizeState(value: unknown): VocabularyState {
   };
 }
 
+function hasChromeStorage(): boolean {
+  return typeof chrome !== 'undefined' && Boolean(chrome.storage?.local);
+}
+
 export async function readVocabularyState(): Promise<VocabularyState> {
+  if (!hasChromeStorage()) {
+    const saved = globalThis.localStorage?.getItem(VOCABULARY_STORAGE_KEY);
+    if (!saved) return EMPTY_VOCABULARY_STATE;
+    try {
+      return normalizeState(JSON.parse(saved));
+    } catch {
+      return EMPTY_VOCABULARY_STATE;
+    }
+  }
+
   const result = await chrome.storage.local.get(VOCABULARY_STORAGE_KEY);
   return normalizeState(result[VOCABULARY_STORAGE_KEY]);
 }
@@ -72,12 +86,33 @@ export async function readVocabularyState(): Promise<VocabularyState> {
 export async function writeVocabularyState(
   state: VocabularyState,
 ): Promise<void> {
+  if (!hasChromeStorage()) {
+    globalThis.localStorage?.setItem(
+      VOCABULARY_STORAGE_KEY,
+      JSON.stringify(state),
+    );
+    return;
+  }
+
   await chrome.storage.local.set({ [VOCABULARY_STORAGE_KEY]: state });
 }
 
 export function subscribeToVocabularyState(
   listener: (state: VocabularyState) => void,
 ): () => void {
+  if (!hasChromeStorage()) {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== VOCABULARY_STORAGE_KEY || !event.newValue) return;
+      try {
+        listener(normalizeState(JSON.parse(event.newValue)));
+      } catch {
+        listener(EMPTY_VOCABULARY_STATE);
+      }
+    };
+    globalThis.addEventListener?.('storage', handleStorage);
+    return () => globalThis.removeEventListener?.('storage', handleStorage);
+  }
+
   const handleChange = (
     changes: Record<string, chrome.storage.StorageChange>,
     areaName: string,

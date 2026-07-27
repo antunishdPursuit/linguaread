@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -34,6 +42,45 @@ type ActiveCard = {
 };
 
 const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
+
+const PdfReaderPage = memo(function PdfReaderPage({
+  file,
+  viewerWidth,
+  vocabulary,
+  setPageCount,
+  setExtractedWords,
+  setError,
+}: {
+  file: File;
+  viewerWidth: number;
+  vocabulary: VocabularyState;
+  setPageCount: Dispatch<SetStateAction<number>>;
+  setExtractedWords: Dispatch<SetStateAction<number>>;
+  setError: Dispatch<SetStateAction<string>>;
+}) {
+  return (
+    <Document
+      file={file}
+      loading={<p className="reader-message">Loading the PDF…</p>}
+      error={<p className="reader-message">This PDF could not be read.</p>}
+      onLoadSuccess={({ numPages }) => setPageCount(numPages)}
+      onLoadError={(reason) => setError(reason.message)}
+    >
+      <Page
+        pageNumber={1}
+        width={viewerWidth}
+        customTextRenderer={({ str }) => renderMockText(str, vocabulary)}
+        onGetTextSuccess={({ items }) => {
+          const text = items
+            .filter((item): item is typeof item & { str: string } => 'str' in item)
+            .map((item) => item.str)
+            .join(' ');
+          setExtractedWords(text.trim() ? text.trim().split(/\s+/).length : 0);
+        }}
+      />
+    </Document>
+  );
+});
 
 function App() {
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -101,13 +148,16 @@ function App() {
     }
   }, []);
 
-  const findWordTarget = (target: EventTarget | null): HTMLElement | null => {
-    return target instanceof HTMLElement
-      ? target.closest<HTMLElement>('[data-linguaread-id]')
-      : null;
-  };
+  const findWordTarget = useCallback(
+    (target: EventTarget | null): HTMLElement | null => {
+      return target instanceof HTMLElement
+        ? target.closest<HTMLElement>('[data-linguaread-id]')
+        : null;
+    },
+    [],
+  );
 
-  const showCard = (target: HTMLElement, mode: CardMode) => {
+  const showCard = useCallback((target: HTMLElement, mode: CardMode) => {
     const result = MOCK_LANGUAGE_RESULTS.find(
       (candidate) => candidate.id === target.dataset.linguareadId,
     );
@@ -128,7 +178,61 @@ function App() {
     const top = Math.max(16, Math.min(rect.top - 12, window.innerHeight - 260));
 
     setActiveCard({ mode, result, left, top });
-  };
+  }, []);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    const handleMouseOver = (event: MouseEvent) => {
+      const target = findWordTarget(event.target);
+      if (!target) return;
+      showCard(target, 'preview');
+    };
+    const handleMouseOut = (event: MouseEvent) => {
+      if (!findWordTarget(event.target)) return;
+      setActiveCard((current) =>
+        current?.mode === 'preview' ? null : current,
+      );
+    };
+    const handleDoubleClick = (event: MouseEvent) => {
+      const target = findWordTarget(event.target);
+      if (target) showCard(target, 'full');
+    };
+    const handleFocusIn = (event: FocusEvent) => {
+      const target = findWordTarget(event.target);
+      if (target) showCard(target, 'preview');
+    };
+    const handleFocusOut = (event: FocusEvent) => {
+      if (!findWordTarget(event.target)) return;
+      setActiveCard((current) =>
+        current?.mode === 'preview' ? null : current,
+      );
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const target = findWordTarget(event.target);
+      if (!target) return;
+      event.preventDefault();
+      showCard(target, 'full');
+    };
+
+    viewer.addEventListener('mouseover', handleMouseOver);
+    viewer.addEventListener('mouseout', handleMouseOut);
+    viewer.addEventListener('dblclick', handleDoubleClick);
+    viewer.addEventListener('focusin', handleFocusIn);
+    viewer.addEventListener('focusout', handleFocusOut);
+    viewer.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      viewer.removeEventListener('mouseover', handleMouseOver);
+      viewer.removeEventListener('mouseout', handleMouseOut);
+      viewer.removeEventListener('dblclick', handleDoubleClick);
+      viewer.removeEventListener('focusin', handleFocusIn);
+      viewer.removeEventListener('focusout', handleFocusOut);
+      viewer.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [findWordTarget, showCard]);
 
   const mandarinCount = MOCK_LANGUAGE_RESULTS.filter(
     (result) => result.action === 'use_mandarin',
@@ -255,35 +359,6 @@ function App() {
       <section
         className="reader-stage"
         ref={viewerRef}
-        onMouseOver={(event) => {
-          const target = findWordTarget(event.target);
-          if (target && activeCard?.mode !== 'full') showCard(target, 'preview');
-        }}
-        onMouseOut={(event) => {
-          if (findWordTarget(event.target) && activeCard?.mode === 'preview') {
-            setActiveCard(null);
-          }
-        }}
-        onDoubleClick={(event) => {
-          const target = findWordTarget(event.target);
-          if (target) showCard(target, 'full');
-        }}
-        onFocus={(event) => {
-          const target = findWordTarget(event.target);
-          if (target && activeCard?.mode !== 'full') showCard(target, 'preview');
-        }}
-        onBlur={(event) => {
-          if (findWordTarget(event.target) && activeCard?.mode === 'preview') {
-            setActiveCard(null);
-          }
-        }}
-        onKeyDown={(event) => {
-          if (event.key !== 'Enter' && event.key !== ' ') return;
-          const target = findWordTarget(event.target);
-          if (!target) return;
-          event.preventDefault();
-          showCard(target, 'full');
-        }}
       >
         {!file ? (
           <div className="empty-reader">
@@ -297,26 +372,14 @@ function App() {
             </p>
           </div>
         ) : (
-          <Document
+          <PdfReaderPage
             file={file}
-            loading={<p className="reader-message">Loading the PDF…</p>}
-            error={<p className="reader-message">This PDF could not be read.</p>}
-            onLoadSuccess={({ numPages }) => setPageCount(numPages)}
-            onLoadError={(reason) => setError(reason.message)}
-          >
-            <Page
-              pageNumber={1}
-              width={viewerWidth}
-              customTextRenderer={({ str }) => renderMockText(str, vocabulary)}
-              onGetTextSuccess={({ items }) => {
-                const text = items
-                  .filter((item): item is typeof item & { str: string } => 'str' in item)
-                  .map((item) => item.str)
-                  .join(' ');
-                setExtractedWords(text.trim() ? text.trim().split(/\s+/).length : 0);
-              }}
-            />
-          </Document>
+            viewerWidth={viewerWidth}
+            vocabulary={vocabulary}
+            setPageCount={setPageCount}
+            setExtractedWords={setExtractedWords}
+            setError={setError}
+          />
         )}
       </section>
 
