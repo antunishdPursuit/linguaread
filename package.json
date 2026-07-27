@@ -1,0 +1,31 @@
+{
+  "name": "linguaread",
+  "description": "A PDF-first Chrome reading aid for Mandarin-speaking English learners.",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "compile": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "zip": "wxt zip",
+    "postinstall": "wxt prepare"
+  },
+  "dependencies": {
+    "pdfjs-dist": "5.4.296",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-pdf": "^10.4.1"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.36",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@wxt-dev/module-react": "^1.1.5",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10",
+    "wxt": "^0.20.27"
+  }
+}

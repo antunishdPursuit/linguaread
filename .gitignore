@@ -1,0 +1,12 @@
+node_modules/
+.wxt/
+.output/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+local-fixtures/
+*.pdf
+

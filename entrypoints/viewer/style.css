@@ -1,0 +1,294 @@
+:root {
+  color: #17202a;
+  background: #f3f5f2;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 360px;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 24px clamp(16px, 3vw, 48px) 48px;
+}
+
+.topbar,
+.control-card,
+.status-row,
+.reader-layout {
+  width: min(1180px, 100%);
+  margin-inline: auto;
+}
+
+.topbar,
+.control-card,
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0;
+  font-size: clamp(30px, 5vw, 46px);
+  letter-spacing: -0.04em;
+}
+
+h2 {
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+.eyebrow,
+.card-label {
+  margin-bottom: 4px;
+  color: #36614a;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.control-card {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid #dce4dc;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgb(32 62 46 / 7%);
+}
+
+.control-card p {
+  max-width: 700px;
+  margin-bottom: 0;
+  color: #59635c;
+  line-height: 1.55;
+}
+
+.file-button,
+.primary-button,
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 10px;
+  font-weight: 750;
+}
+
+.file-button,
+.primary-button {
+  color: #ffffff;
+  background: #256746;
+}
+
+.file-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.secondary-button {
+  border: 1px solid #b9c8bd;
+  color: #234d37;
+  background: #ffffff;
+}
+
+.status-row {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  color: #66716a;
+  font-size: 13px;
+}
+
+.status-row span:not(:last-child)::after {
+  margin-left: 20px;
+  color: #b8c2ba;
+  content: "•";
+}
+
+.error-message {
+  width: min(1180px, 100%);
+  margin: 12px auto 0;
+  padding: 12px 14px;
+  border: 1px solid #e6b7b3;
+  border-radius: 10px;
+  color: #7a211d;
+  background: #fff1ef;
+}
+
+.reader-layout {
+  display: grid;
+  grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+  margin-top: 20px;
+}
+
+.help-card,
+.viewer-card {
+  border: 1px solid #dce4dc;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.help-card {
+  position: sticky;
+  top: 20px;
+  padding: 18px;
+}
+
+.help-card ol {
+  padding-left: 20px;
+  color: #465149;
+  line-height: 1.55;
+}
+
+.mock-note {
+  margin-bottom: 0;
+  padding: 10px;
+  border-radius: 8px;
+  color: #15422c;
+  background: #eaf5ee;
+  font-weight: 700;
+}
+
+.viewer-card {
+  position: relative;
+  min-height: 680px;
+  padding: 16px;
+  overflow: auto;
+  background: #dfe4df;
+}
+
+.react-pdf__Document {
+  width: fit-content;
+  margin-inline: auto;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 16%);
+}
+
+.empty-reader,
+.reader-message {
+  display: grid;
+  place-items: center;
+  min-height: 600px;
+  margin: 0;
+  text-align: center;
+}
+
+.empty-reader {
+  align-content: center;
+  color: #536058;
+}
+
+.empty-icon {
+  display: grid;
+  width: 70px;
+  height: 70px;
+  margin-bottom: 16px;
+  place-items: center;
+  border-radius: 18px;
+  color: #ffffff;
+  background: #36614a;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.linguaread-word {
+  padding-inline: 1px;
+  border-radius: 2px;
+  outline: 2px solid rgb(15 139 141 / 36%);
+  color: #075a5b;
+  background: #c9f0ea;
+  font-weight: 800;
+  cursor: help;
+}
+
+.word-card {
+  position: fixed;
+  z-index: 20;
+  right: 24px;
+  bottom: 24px;
+  width: min(280px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid #8db3a0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 18px 54px rgb(23 48 35 / 24%);
+}
+
+.word-card.full {
+  width: min(340px, calc(100vw - 32px));
+}
+
+.word-card p {
+  color: #536058;
+}
+
+.word-pair {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+  font-size: 24px;
+}
+
+.card-close {
+  float: right;
+  border: 0;
+  color: #536058;
+  background: transparent;
+  font-size: 24px;
+}
+
+@media (max-width: 760px) {
+  .topbar,
+  .control-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .reader-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .help-card {
+    position: static;
+  }
+
+  .viewer-card {
+    min-height: 540px;
+  }
+}
