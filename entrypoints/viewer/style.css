@@ -345,35 +345,47 @@ button:focus-visible,
 }
 
 .linguaread-word {
-  padding-inline: 1px;
-  border-radius: 1px;
-  font-weight: 700;
+  --word-marker: #6c6256;
+
+  position: relative;
+  color: transparent !important;
+  text-decoration: underline;
+  text-decoration-color: var(--word-marker);
+  text-decoration-thickness: 1.25px;
+  text-underline-offset: 2px;
   cursor: help;
 }
 
+.linguaread-word::before {
+  position: absolute;
+  top: -0.28em;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-top: 3px solid var(--word-marker);
+  border-right: 3px solid transparent;
+  border-left: 3px solid transparent;
+  content: "";
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
 .linguaread-word.is-synonym {
-  color: #226d75;
-  text-decoration: underline;
-  text-decoration-color: #69aeb0;
+  --word-marker: #2d858c;
+
   text-decoration-style: dashed;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
 }
 
 .linguaread-word.is-mandarin {
-  color: #b64f38;
-  background: #f7e5dd;
+  --word-marker: #c95b3e;
 }
 
 .linguaread-word.is-learning {
-  box-shadow: inset 0 -3px #d2a938;
+  --word-marker: #bd8b15;
 }
 
 .linguaread-word.is-known {
-  color: #346f50;
-  background: #deeee3;
-  box-shadow: inset 0 -3px #6ca37e;
-  text-decoration: none;
+  --word-marker: #57916e;
 }
 
 .word-card {

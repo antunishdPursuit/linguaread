@@ -137,12 +137,16 @@ export function renderMockText(
 
     const actionClass =
       result.action === 'use_mandarin' ? 'is-mandarin' : 'is-synonym';
+    const helpLabel =
+      result.action === 'use_mandarin'
+        ? 'Mandarin help available'
+        : 'simpler English help available';
     const listClass = vocabulary?.learning.some((entry) => entry.id === result.id)
       ? 'is-learning'
       : vocabulary?.known.some((entry) => entry.id === result.id)
         ? 'is-known'
         : '';
 
-    return `<span class="linguaread-word ${actionClass} ${listClass}" data-linguaread-word="${escapeHtml(result.sourceWord)}" data-linguaread-id="${escapeHtml(result.id)}" tabindex="0" role="button" aria-label="${escapeHtml(result.sourceWord)} changed to ${escapeHtml(result.displayWord)}">${escapeHtml(result.displayWord)}</span>`;
+    return `<span class="linguaread-word ${actionClass} ${listClass}" data-linguaread-word="${escapeHtml(result.sourceWord)}" data-linguaread-id="${escapeHtml(result.id)}" data-linguaread-action="${escapeHtml(result.action)}" tabindex="0" role="button" aria-label="${escapeHtml(result.sourceWord)}: ${helpLabel}">${escapeHtml(sourceWord)}</span>`;
   });
 }

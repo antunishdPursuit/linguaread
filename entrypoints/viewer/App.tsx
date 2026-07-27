@@ -332,10 +332,10 @@ function App() {
 
         <div className="legend" aria-label="Word display legend">
           <span className="legend-item mandarin">
-            <i /> {mandarinCount} Mandarin
+            <i /> {mandarinCount} Mandarin hints
           </span>
           <span className="legend-item synonym">
-            <i /> {synonymCount} simpler synonyms
+            <i /> {synonymCount} simpler English hints
           </span>
           <span className="legend-item known">
             <i /> {vocabulary.known.length} known
@@ -404,9 +404,13 @@ function App() {
           </p>
           <div className="word-pair">
             <strong>{activeCard.result.sourceWord}</strong>
-            <span>{activeCard.result.mandarin}</span>
+            <span>{activeCard.result.displayWord}</span>
           </div>
-          <p className="pinyin">{activeCard.result.pinyin}</p>
+          <p className="pinyin">
+            {activeCard.result.action === 'use_synonym'
+              ? `Simpler English · ${activeCard.result.mandarin} · ${activeCard.result.pinyin}`
+              : activeCard.result.pinyin}
+          </p>
           {activeCard.mode === 'full' && (
             <>
               <p className="word-meaning">{activeCard.result.shortMeaning}</p>

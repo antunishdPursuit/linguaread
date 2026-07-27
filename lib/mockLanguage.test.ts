@@ -18,23 +18,25 @@ describe('mock language renderer', () => {
     );
   });
 
-  it('adds the Mandarin mock target to innovation', () => {
+  it('marks innovation without replacing its original PDF text', () => {
     const result = renderMockText('Tradition and innovation drive each other.');
 
     expect(result).toContain('data-linguaread-word="innovation"');
-    expect(result).toContain('创新');
-    expect(result).not.toContain('>innovation<');
+    expect(result).toContain('data-linguaread-action="use_mandarin"');
+    expect(result).toContain('>innovation<');
+    expect(result).not.toContain(MOCK_LANGUAGE_RESULTS[0].displayWord);
   });
 
-  it('marks several prepared words without processing unrelated words', () => {
+  it('marks several prepared words while preserving their source text', () => {
     const result = renderMockText(
       'The controlled strategy supported innovation and craftsmanship.',
     );
 
     expect(result.match(/data-linguaread-id=/g)).toHaveLength(3);
-    expect(result).toContain('managed');
-    expect(result).toContain('创新');
-    expect(result).toContain('工艺');
+    expect(result).toContain('>controlled<');
+    expect(result).toContain('>innovation<');
+    expect(result).toContain('>craftsmanship<');
+    expect(result).not.toContain(MOCK_LANGUAGE_RESULTS[1].displayWord);
   });
 
   it('leaves unrelated text unchanged', () => {
