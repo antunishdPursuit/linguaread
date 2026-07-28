@@ -13,10 +13,12 @@ import {
 } from '../../lib/vocabularyStorage';
 import {
   PDF_LAUNCH_STORAGE_KEY,
+  PANEL_VIEW_STORAGE_KEY,
   isPdfUrl,
   pdfNameFromUrl,
   viewerUrlForPdf,
   type PdfLaunchContext,
+  type LinguaReadPanelView,
 } from '../../lib/pdfLaunch';
 
 type PanelTab = 'learning' | 'known';
@@ -84,7 +86,7 @@ function App() {
     const sessionStorage = browser.storage?.session;
     if (sessionStorage) {
       void sessionStorage
-        .get(PDF_LAUNCH_STORAGE_KEY)
+        .get([PDF_LAUNCH_STORAGE_KEY, PANEL_VIEW_STORAGE_KEY])
         .then((stored) => {
           const candidate = stored[PDF_LAUNCH_STORAGE_KEY] as
             | PdfLaunchContext
@@ -93,6 +95,12 @@ function App() {
           setLaunchContext(
             candidate && isPdfUrl(candidate.url) ? candidate : null,
           );
+          const storedPanelView = stored[PANEL_VIEW_STORAGE_KEY] as
+            | LinguaReadPanelView
+            | undefined;
+          if (storedPanelView === 'launch' || storedPanelView === 'words') {
+            setPanelView(storedPanelView);
+          }
         })
         .catch(() => setLaunchContext(null));
     }
@@ -107,6 +115,9 @@ function App() {
     setError('');
 
     try {
+      await browser.storage?.session?.set({
+        [PANEL_VIEW_STORAGE_KEY]: 'words',
+      });
       await browser.tabs.create({
         url: launchContext
           ? viewerUrlForPdf(launchContext.url)
@@ -166,15 +177,25 @@ function App() {
       </header>
 
       <nav className="panel-view-switcher" aria-label="LinguaRead panel">
-        <button
+          <button
           className={panelView === 'launch' ? 'active' : ''}
-          onClick={() => setPanelView('launch')}
+          onClick={() => {
+            setPanelView('launch');
+            void browser.storage?.session?.set({
+              [PANEL_VIEW_STORAGE_KEY]: 'launch',
+            });
+          }}
         >
           Read PDF
         </button>
         <button
           className={panelView === 'words' ? 'active' : ''}
-          onClick={() => setPanelView('words')}
+          onClick={() => {
+            setPanelView('words');
+            void browser.storage?.session?.set({
+              [PANEL_VIEW_STORAGE_KEY]: 'words',
+            });
+          }}
         >
           Word lists
         </button>

@@ -1,4 +1,7 @@
 export const PDF_LAUNCH_STORAGE_KEY = 'linguareadPdfLaunch';
+export const PANEL_VIEW_STORAGE_KEY = 'linguareadPanelView';
+
+export type LinguaReadPanelView = 'launch' | 'words';
 
 export type PdfLaunchContext = {
   capturedAt: number;

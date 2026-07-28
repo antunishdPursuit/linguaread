@@ -1,5 +1,6 @@
 import {
   PDF_LAUNCH_STORAGE_KEY,
+  PANEL_VIEW_STORAGE_KEY,
   isPdfUrl,
   type PdfLaunchContext,
 } from '../lib/pdfLaunch';
@@ -16,6 +17,7 @@ export default defineBackground(() => {
 
     await browser.storage.session.set({
       [PDF_LAUNCH_STORAGE_KEY]: context,
+      [PANEL_VIEW_STORAGE_KEY]: 'launch',
     });
 
     if (tab.id !== undefined) {

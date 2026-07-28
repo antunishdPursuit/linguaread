@@ -29,7 +29,11 @@ import {
   vocabularyListFor,
   writeVocabularyState,
 } from '../../lib/vocabularyStorage';
-import { isPdfUrl, pdfNameFromUrl } from '../../lib/pdfLaunch';
+import {
+  PANEL_VIEW_STORAGE_KEY,
+  isPdfUrl,
+  pdfNameFromUrl,
+} from '../../lib/pdfLaunch';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -321,6 +325,9 @@ function App() {
 
   const openSidePanel = useCallback(async () => {
     try {
+      await browser.storage.session.set({
+        [PANEL_VIEW_STORAGE_KEY]: 'words',
+      });
       const currentWindow = await chrome.windows.getCurrent();
       if (currentWindow.id === undefined) throw new Error('Window not found');
       await chrome.sidePanel.open({ windowId: currentWindow.id });
