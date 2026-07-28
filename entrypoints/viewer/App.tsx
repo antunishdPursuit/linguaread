@@ -42,21 +42,31 @@ type ActiveCard = {
   top: number;
 };
 
+type FitMode = 'page' | 'width' | 'custom';
+
 const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
 
-const PdfReaderPage = memo(function PdfReaderPage({
+const PdfReaderDocument = memo(function PdfReaderDocument({
   file,
+  pageCount,
+  renderedPageCount,
   viewerWidth,
   vocabulary,
   setPageCount,
-  setExtractedWords,
+  setRenderedPageCount,
+  setPageAspectRatio,
+  setPageWordCount,
   setError,
 }: {
   file: File | string;
+  pageCount: number;
+  renderedPageCount: number;
   viewerWidth: number;
   vocabulary: VocabularyState;
   setPageCount: Dispatch<SetStateAction<number>>;
-  setExtractedWords: Dispatch<SetStateAction<number>>;
+  setRenderedPageCount: Dispatch<SetStateAction<number>>;
+  setPageAspectRatio: Dispatch<SetStateAction<number>>;
+  setPageWordCount: (pageNumber: number, wordCount: number) => void;
   setError: Dispatch<SetStateAction<string>>;
 }) {
   return (
@@ -64,32 +74,79 @@ const PdfReaderPage = memo(function PdfReaderPage({
       file={file}
       loading={<p className="reader-message">Loading the PDF…</p>}
       error={<p className="reader-message">This PDF could not be read.</p>}
-      onLoadSuccess={({ numPages }) => setPageCount(numPages)}
+      onLoadSuccess={({ numPages }) => {
+        setPageCount(numPages);
+        setRenderedPageCount(Math.min(3, numPages));
+      }}
       onLoadError={(reason) => setError(reason.message)}
     >
-      <Page
-        pageNumber={1}
-        width={viewerWidth}
-        customTextRenderer={({ str }) => renderMockText(str, vocabulary)}
-        onGetTextSuccess={({ items }) => {
-          const text = items
-            .filter((item): item is typeof item & { str: string } => 'str' in item)
-            .map((item) => item.str)
-            .join(' ');
-          setExtractedWords(text.trim() ? text.trim().split(/\s+/).length : 0);
-        }}
-      />
+      <div className="pdf-pages">
+        {Array.from({ length: renderedPageCount }, (_, index) => {
+          const pageNumber = index + 1;
+
+          return (
+            <section
+              className="pdf-page-shell"
+              data-page-number={pageNumber}
+              key={pageNumber}
+              aria-label={`PDF page ${pageNumber}`}
+            >
+              <Page
+                pageNumber={pageNumber}
+                width={viewerWidth}
+                customTextRenderer={({ str }) =>
+                  renderMockText(str, vocabulary)
+                }
+                onLoadSuccess={(page) => {
+                  if (pageNumber === 1) {
+                    setPageAspectRatio(page.originalHeight / page.originalWidth);
+                  }
+                }}
+                onGetTextSuccess={({ items }) => {
+                  const text = items
+                    .filter(
+                      (item): item is typeof item & { str: string } =>
+                        'str' in item,
+                    )
+                    .map((item) => item.str)
+                    .join(' ');
+                  setPageWordCount(
+                    pageNumber,
+                    text.trim() ? text.trim().split(/\s+/).length : 0,
+                  );
+                }}
+              />
+              <span className="page-number" aria-hidden="true">
+                {pageNumber}
+              </span>
+            </section>
+          );
+        })}
+        {renderedPageCount < pageCount && (
+          <div className="page-loader" data-load-more-pages role="status">
+            Loading more pages…
+          </div>
+        )}
+      </div>
     </Document>
   );
 });
 
 function App() {
   const viewerRef = useRef<HTMLDivElement>(null);
+  const pageWordCountsRef = useRef<Record<number, number>>({});
   const [file, setFile] = useState<File | string | null>(null);
   const [fileName, setFileName] = useState('Choose a PDF to begin');
   const [pageCount, setPageCount] = useState(0);
+  const [renderedPageCount, setRenderedPageCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [requestedPage, setRequestedPage] = useState<number | null>(null);
   const [extractedWords, setExtractedWords] = useState(0);
-  const [viewerWidth, setViewerWidth] = useState(760);
+  const [baseViewerWidth, setBaseViewerWidth] = useState(760);
+  const [stageHeight, setStageHeight] = useState(720);
+  const [pageAspectRatio, setPageAspectRatio] = useState(1.294);
+  const [zoom, setZoom] = useState(1);
+  const [fitMode, setFitMode] = useState<FitMode>('width');
   const [activeCard, setActiveCard] = useState<ActiveCard | null>(null);
   const [vocabulary, setVocabulary] = useState<VocabularyState>(
     EMPTY_VOCABULARY_STATE,
@@ -110,12 +167,22 @@ function App() {
     if (!element) return;
 
     const observer = new ResizeObserver(([entry]) => {
-      setViewerWidth(Math.max(320, Math.min(760, entry.contentRect.width - 48)));
+      setBaseViewerWidth(
+        Math.max(280, Math.min(760, entry.contentRect.width - 48)),
+      );
+      setStageHeight(entry.contentRect.height);
     });
 
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+
+  const fitPageZoom = Math.min(
+    1,
+    Math.max(0.5, (stageHeight - 72) / (baseViewerWidth * pageAspectRatio)),
+  );
+  const effectiveZoom = fitMode === 'page' ? fitPageZoom : zoom;
+  const viewerWidth = Math.round(baseViewerWidth * effectiveZoom);
 
   useEffect(() => {
     void readVocabularyState()
@@ -129,6 +196,12 @@ function App() {
     setError('');
     setExtractedWords(0);
     setPageCount(0);
+    setRenderedPageCount(0);
+    setCurrentPage(1);
+    setRequestedPage(null);
+    setZoom(1);
+    setFitMode('width');
+    pageWordCountsRef.current = {};
 
     if (!nextFile) {
       setFile(null);
@@ -145,6 +218,105 @@ function App() {
 
     setFile(nextFile);
     setFileName(nextFile.name);
+  }, []);
+
+  const setPageWordCount = useCallback(
+    (pageNumber: number, wordCount: number) => {
+      pageWordCountsRef.current[pageNumber] = wordCount;
+      setExtractedWords(
+        Object.values(pageWordCountsRef.current).reduce(
+          (total, count) => total + count,
+          0,
+        ),
+      );
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || !file || pageCount === 0) return;
+
+    const pages = Array.from(
+      viewer.querySelectorAll<HTMLElement>('[data-page-number]'),
+    );
+    if (!pages.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        const pageNumber = Number(
+          (visible[0]?.target as HTMLElement | undefined)?.dataset.pageNumber,
+        );
+        if (pageNumber) setCurrentPage(pageNumber);
+      },
+      {
+        root: viewer,
+        threshold: [0.2, 0.45, 0.7],
+      },
+    );
+
+    pages.forEach((page) => observer.observe(page));
+    return () => observer.disconnect();
+  }, [file, pageCount, renderedPageCount, viewerWidth]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    const loader = viewer?.querySelector<HTMLElement>(
+      '[data-load-more-pages]',
+    );
+    if (!viewer || !loader) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setRenderedPageCount((current) =>
+          Math.min(pageCount, current + 2),
+        );
+      },
+      {
+        root: viewer,
+        rootMargin: '500px 0px',
+      },
+    );
+
+    observer.observe(loader);
+    return () => observer.disconnect();
+  }, [pageCount, renderedPageCount]);
+
+  useEffect(() => {
+    if (requestedPage === null || requestedPage > renderedPageCount) return;
+
+    const frame = requestAnimationFrame(() => {
+      const page = viewerRef.current?.querySelector<HTMLElement>(
+        `[data-page-number="${requestedPage}"]`,
+      );
+      page?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setCurrentPage(requestedPage);
+      setRequestedPage(null);
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [renderedPageCount, requestedPage]);
+
+  const scrollToPage = useCallback(
+    (pageNumber: number) => {
+      const nextPage = Math.max(1, Math.min(pageCount, pageNumber));
+      setRenderedPageCount((current) =>
+        Math.max(current, Math.min(pageCount, nextPage + 1)),
+      );
+      setRequestedPage(nextPage);
+    },
+    [pageCount],
+  );
+
+  const changeZoom = useCallback((direction: -1 | 1) => {
+    setFitMode('custom');
+    setZoom((current) =>
+      Math.max(0.6, Math.min(1.8, Number((current + direction * 0.1).toFixed(1)))),
+    );
   }, []);
 
   const openSidePanel = useCallback(async () => {
@@ -336,7 +508,7 @@ function App() {
         <div className="status-copy">
           <strong>{fileName}</strong>
           {pageCount > 0 && <span>{pageCount} pages</span>}
-          {extractedWords > 0 && <span>{extractedWords} words on page 1</span>}
+          {extractedWords > 0 && <span>{extractedWords} words detected</span>}
         </div>
 
         <div className="legend" aria-label="Word display legend">
@@ -355,6 +527,67 @@ function App() {
         </div>
       </section>
 
+      {file && (
+        <section className="reader-control-bar" aria-label="Reader controls">
+          <div className="page-controls">
+            <button
+              type="button"
+              aria-label="Previous page"
+              disabled={currentPage <= 1}
+              onClick={() => scrollToPage(currentPage - 1)}
+            >
+              ←
+            </button>
+            <span>
+              Page <strong>{currentPage}</strong> of {pageCount || '—'}
+            </span>
+            <button
+              type="button"
+              aria-label="Next page"
+              disabled={currentPage >= pageCount}
+              onClick={() => scrollToPage(currentPage + 1)}
+            >
+              →
+            </button>
+          </div>
+
+          <div className="zoom-controls">
+            <button
+              type="button"
+              aria-label="Zoom out"
+              onClick={() => changeZoom(-1)}
+            >
+              −
+            </button>
+            <span>{Math.round(effectiveZoom * 100)}%</span>
+            <button
+              type="button"
+              aria-label="Zoom in"
+              onClick={() => changeZoom(1)}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              className={fitMode === 'width' ? 'active' : ''}
+              onClick={() => {
+                setZoom(1);
+                setFitMode('width');
+              }}
+            >
+              Fit width
+            </button>
+            <button
+              type="button"
+              className={fitMode === 'page' ? 'active' : ''}
+              onClick={() => setFitMode('page')}
+            >
+              Fit page
+            </button>
+          </div>
+        </section>
+      )}
+
       <p className="sr-only" aria-live="polite">
         {statusMessage}
       </p>
@@ -368,6 +601,11 @@ function App() {
       <section
         className="reader-stage"
         ref={viewerRef}
+        onScroll={() =>
+          setActiveCard((current) =>
+            current?.mode === 'preview' ? null : current,
+          )
+        }
       >
         {!file ? (
           <div className="empty-reader">
@@ -381,12 +619,16 @@ function App() {
             </p>
           </div>
         ) : (
-          <PdfReaderPage
+          <PdfReaderDocument
             file={file}
+            pageCount={pageCount}
+            renderedPageCount={renderedPageCount}
             viewerWidth={viewerWidth}
             vocabulary={vocabulary}
             setPageCount={setPageCount}
-            setExtractedWords={setExtractedWords}
+            setRenderedPageCount={setRenderedPageCount}
+            setPageAspectRatio={setPageAspectRatio}
+            setPageWordCount={setPageWordCount}
             setError={setError}
           />
         )}

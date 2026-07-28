@@ -160,10 +160,70 @@ button:focus-visible,
 
 .document-header,
 .reader-status,
+.reader-control-bar,
 .reader-stage,
 .error-message {
   width: min(1180px, calc(100% - 32px));
   margin-inline: auto;
+}
+
+.reader-control-bar {
+  position: sticky;
+  z-index: 20;
+  top: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  padding: 8px 10px;
+  border: 1px solid #c8c0b1;
+  border-radius: 8px;
+  background: rgb(245 240 230 / 96%);
+  box-shadow: 0 7px 18px rgb(62 50 35 / 9%);
+  backdrop-filter: blur(10px);
+}
+
+.page-controls,
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reader-control-bar button {
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid #c8bead;
+  border-radius: 5px;
+  color: #574f44;
+  background: #fffaf0;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.reader-control-bar button:hover:not(:disabled),
+.reader-control-bar button.active {
+  border-color: var(--orange);
+  color: #913f2d;
+  background: #f8e4dc;
+}
+
+.reader-control-bar button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.page-controls span,
+.zoom-controls span {
+  min-width: 86px;
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
+
+.zoom-controls span {
+  min-width: 48px;
 }
 
 .document-header {
@@ -284,7 +344,7 @@ button:focus-visible,
 
 .reader-stage {
   position: relative;
-  min-height: 720px;
+  height: clamp(560px, calc(100vh - 240px), 900px);
   margin-top: 18px;
   padding: 28px;
   overflow: auto;
@@ -296,11 +356,51 @@ button:focus-visible,
 .react-pdf__Document {
   width: fit-content;
   margin-inline: auto;
+}
+
+.pdf-pages {
+  display: grid;
+  gap: 22px;
+}
+
+.pdf-page-shell {
+  position: relative;
+  width: fit-content;
+  scroll-margin-top: 60px;
   box-shadow: 0 12px 34px rgb(52 44 33 / 24%);
 }
 
 .react-pdf__Page {
   background: var(--paper) !important;
+}
+
+.page-number {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  display: grid;
+  min-width: 24px;
+  min-height: 20px;
+  padding: 3px 6px;
+  place-items: center;
+  border-radius: 999px;
+  color: #665e53;
+  background: rgb(245 240 230 / 88%);
+  font-size: 9px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.page-loader {
+  display: grid;
+  min-height: 88px;
+  place-items: center;
+  border: 1px dashed #a89e8f;
+  border-radius: 8px;
+  color: #655e53;
+  background: rgb(245 240 230 / 72%);
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .empty-reader,
@@ -512,10 +612,24 @@ button:focus-visible,
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .reader-control-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .page-controls,
+  .zoom-controls {
+    justify-content: center;
+  }
 }
 
 @media (max-width: 680px) {
   .browser-bar {
+    position: static;
+  }
+
+  .reader-control-bar {
     position: static;
   }
 
@@ -542,8 +656,13 @@ button:focus-visible,
   }
 
   .reader-stage {
-    min-height: 560px;
+    height: 70vh;
+    min-height: 500px;
     padding: 16px;
+  }
+
+  .zoom-controls {
+    flex-wrap: wrap;
   }
 
   .empty-reader,
