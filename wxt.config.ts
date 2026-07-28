@@ -6,9 +6,9 @@ export default defineConfig({
     name: 'LinguaRead',
     description:
       'Read English PDFs with focused Mandarin and simpler-English support.',
-    permissions: ['storage', 'sidePanel'],
+    permissions: ['activeTab', 'storage', 'sidePanel'],
     action: {
-      default_title: 'Open LinguaRead',
+      default_title: 'Read this PDF with LinguaRead',
     },
   },
 });

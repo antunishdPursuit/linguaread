@@ -29,6 +29,7 @@ import {
   vocabularyListFor,
   writeVocabularyState,
 } from '../../lib/vocabularyStorage';
+import { isPdfUrl, pdfNameFromUrl } from '../../lib/pdfLaunch';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -51,7 +52,7 @@ const PdfReaderPage = memo(function PdfReaderPage({
   setExtractedWords,
   setError,
 }: {
-  file: File;
+  file: File | string;
   viewerWidth: number;
   vocabulary: VocabularyState;
   setPageCount: Dispatch<SetStateAction<number>>;
@@ -84,7 +85,7 @@ const PdfReaderPage = memo(function PdfReaderPage({
 
 function App() {
   const viewerRef = useRef<HTMLDivElement>(null);
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<File | string | null>(null);
   const [fileName, setFileName] = useState('Choose a PDF to begin');
   const [pageCount, setPageCount] = useState(0);
   const [extractedWords, setExtractedWords] = useState(0);
@@ -95,6 +96,14 @@ function App() {
   );
   const [statusMessage, setStatusMessage] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const source = new URLSearchParams(window.location.search).get('source');
+    if (source && isPdfUrl(source)) {
+      setFile(source);
+      setFileName(pdfNameFromUrl(source));
+    }
+  }, []);
 
   useEffect(() => {
     const element = viewerRef.current;
@@ -367,7 +376,7 @@ function App() {
             </div>
             <h2>Choose a text-based PDF</h2>
             <p>
-              LinguaRead will display page one and mark only the words prepared
+              LinguaRead will display the PDF and mark only the words prepared
               for help.
             </p>
           </div>

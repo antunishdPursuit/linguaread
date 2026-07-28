@@ -11,6 +11,13 @@ import {
   subscribeToVocabularyState,
   writeVocabularyState,
 } from '../../lib/vocabularyStorage';
+import {
+  PDF_LAUNCH_STORAGE_KEY,
+  isPdfUrl,
+  pdfNameFromUrl,
+  viewerUrlForPdf,
+  type PdfLaunchContext,
+} from '../../lib/pdfLaunch';
 
 type PanelTab = 'learning' | 'known';
 
@@ -61,6 +68,10 @@ function WordList({
 }
 
 function App() {
+  const [launchContext, setLaunchContext] = useState<PdfLaunchContext | null>(
+    null,
+  );
+  const [panelView, setPanelView] = useState<'launch' | 'words'>('launch');
   const [tab, setTab] = useState<PanelTab>('learning');
   const [query, setQuery] = useState('');
   const [vocabulary, setVocabulary] = useState<VocabularyState>(
@@ -70,11 +81,41 @@ function App() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const sessionStorage = browser.storage?.session;
+    if (sessionStorage) {
+      void sessionStorage
+        .get(PDF_LAUNCH_STORAGE_KEY)
+        .then((stored) => {
+          const candidate = stored[PDF_LAUNCH_STORAGE_KEY] as
+            | PdfLaunchContext
+            | null
+            | undefined;
+          setLaunchContext(
+            candidate && isPdfUrl(candidate.url) ? candidate : null,
+          );
+        })
+        .catch(() => setLaunchContext(null));
+    }
+
     void readVocabularyState()
       .then(setVocabulary)
       .catch(() => setError('LinguaRead could not load your saved words.'));
     return subscribeToVocabularyState(setVocabulary);
   }, []);
+
+  const openReader = async () => {
+    setError('');
+
+    try {
+      await browser.tabs.create({
+        url: launchContext
+          ? viewerUrlForPdf(launchContext.url)
+          : browser.runtime.getURL('/viewer.html'),
+      });
+    } catch {
+      setError('LinguaRead could not open the reader. Try again.');
+    }
+  };
 
   const entries =
     tab === 'learning' ? vocabulary.learning : vocabulary.known;
@@ -124,6 +165,58 @@ function App() {
         <span className="level-badge">B2</span>
       </header>
 
+      <nav className="panel-view-switcher" aria-label="LinguaRead panel">
+        <button
+          className={panelView === 'launch' ? 'active' : ''}
+          onClick={() => setPanelView('launch')}
+        >
+          Read PDF
+        </button>
+        <button
+          className={panelView === 'words' ? 'active' : ''}
+          onClick={() => setPanelView('words')}
+        >
+          Word lists
+        </button>
+      </nav>
+
+      {panelView === 'launch' ? (
+        <section className="launch-card" aria-labelledby="launch-title">
+          <span className="launch-icon" aria-hidden="true">
+            PDF
+          </span>
+          <p className="launch-eyebrow">Current tab</p>
+          <h2 id="launch-title">
+            {launchContext
+              ? 'Read this PDF with LinguaRead'
+              : 'Open the LinguaRead reader'}
+          </h2>
+          <p className="launch-file">
+            {launchContext
+              ? pdfNameFromUrl(launchContext.url)
+              : 'Open a PDF, then select the pinned LinguaRead icon.'}
+          </p>
+          <p className="launch-note">
+            LinguaRead opens a separate reading view. It does not change the
+            original PDF.
+          </p>
+          <button className="launch-button" onClick={() => void openReader()}>
+            {launchContext ? 'Read this PDF' : 'Choose a PDF'}
+          </button>
+          {launchContext?.url.startsWith('file:') && (
+            <p className="file-access-note">
+              If Chrome blocks the file, enable “Allow access to file URLs” for
+              LinguaRead or use Choose PDF in the reader.
+            </p>
+          )}
+          {error && (
+            <p className="panel-error" role="alert">
+              {error}
+            </p>
+          )}
+        </section>
+      ) : (
+        <>
       <div className="tabs" role="tablist" aria-label="Vocabulary lists">
         <button
           role="tab"
@@ -168,6 +261,8 @@ function App() {
       )}
 
       <WordList entries={filteredEntries} tab={tab} onMove={moveWord} />
+        </>
+      )}
     </main>
   );
 }
