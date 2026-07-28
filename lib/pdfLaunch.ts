@@ -1,7 +1,19 @@
 export const PDF_LAUNCH_STORAGE_KEY = 'linguareadPdfLaunch';
 export const PANEL_VIEW_STORAGE_KEY = 'linguareadPanelView';
+export const OPEN_READER_MESSAGE = 'linguaread:open-reader';
 
 export type LinguaReadPanelView = 'launch' | 'words';
+
+export type OpenReaderMessage = {
+  type: typeof OPEN_READER_MESSAGE;
+  sourceUrl?: string;
+};
+
+export type OpenReaderResponse = {
+  error?: string;
+  ok: boolean;
+  usedFilePickerFallback: boolean;
+};
 
 export type PdfLaunchContext = {
   capturedAt: number;

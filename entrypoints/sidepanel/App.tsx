@@ -12,13 +12,14 @@ import {
   writeVocabularyState,
 } from '../../lib/vocabularyStorage';
 import {
+  OPEN_READER_MESSAGE,
   PDF_LAUNCH_STORAGE_KEY,
   PANEL_VIEW_STORAGE_KEY,
   isPdfUrl,
   pdfNameFromUrl,
-  viewerUrlForPdf,
   type PdfLaunchContext,
   type LinguaReadPanelView,
+  type OpenReaderResponse,
 } from '../../lib/pdfLaunch';
 
 type PanelTab = 'learning' | 'known';
@@ -115,14 +116,24 @@ function App() {
     setError('');
 
     try {
+      const response = (await browser.runtime.sendMessage({
+        type: OPEN_READER_MESSAGE,
+        sourceUrl: launchContext?.url,
+      })) as OpenReaderResponse;
+
+      if (!response?.ok) {
+        throw new Error(response?.error || 'The reader did not open.');
+      }
+
       await browser.storage?.session?.set({
         [PANEL_VIEW_STORAGE_KEY]: 'words',
       });
-      await browser.tabs.create({
-        url: launchContext
-          ? viewerUrlForPdf(launchContext.url)
-          : browser.runtime.getURL('/viewer.html'),
-      });
+      setPanelView('words');
+      if (response.usedFilePickerFallback) {
+        setStatusMessage(
+          'Chrome opened LinguaRead without the local file. Choose the PDF again in the reader.',
+        );
+      }
     } catch {
       setError('LinguaRead could not open the reader. Try again.');
     }
