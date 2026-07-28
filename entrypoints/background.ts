@@ -9,6 +9,12 @@ import {
 } from '../lib/pdfLaunch';
 
 export default defineBackground(() => {
+  void chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: true })
+    .catch((error) => {
+      console.error('LinguaRead could not configure its side panel.', error);
+    });
+
   browser.runtime.onMessage.addListener(
     (
       message: OpenReaderMessage,
@@ -58,14 +64,5 @@ export default defineBackground(() => {
       [PDF_LAUNCH_STORAGE_KEY]: context,
       [PANEL_VIEW_STORAGE_KEY]: 'launch',
     });
-
-    if (tab.id !== undefined) {
-      await chrome.sidePanel.open({ tabId: tab.id });
-      return;
-    }
-
-    if (tab.windowId !== undefined) {
-      await chrome.sidePanel.open({ windowId: tab.windowId });
-    }
   });
 });

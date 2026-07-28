@@ -85,31 +85,60 @@ function App() {
 
   useEffect(() => {
     const sessionStorage = browser.storage?.session;
+    const applySessionState = (stored: Record<string, unknown>) => {
+      if (PDF_LAUNCH_STORAGE_KEY in stored) {
+        const candidate = stored[PDF_LAUNCH_STORAGE_KEY] as
+          | PdfLaunchContext
+          | null
+          | undefined;
+        setLaunchContext(
+          candidate && isPdfUrl(candidate.url) ? candidate : null,
+        );
+      }
+      if (PANEL_VIEW_STORAGE_KEY in stored) {
+        const storedPanelView = stored[PANEL_VIEW_STORAGE_KEY] as
+          | LinguaReadPanelView
+          | undefined;
+        if (storedPanelView === 'launch' || storedPanelView === 'words') {
+          setPanelView(storedPanelView);
+        }
+      }
+    };
+
     if (sessionStorage) {
       void sessionStorage
         .get([PDF_LAUNCH_STORAGE_KEY, PANEL_VIEW_STORAGE_KEY])
-        .then((stored) => {
-          const candidate = stored[PDF_LAUNCH_STORAGE_KEY] as
-            | PdfLaunchContext
-            | null
-            | undefined;
-          setLaunchContext(
-            candidate && isPdfUrl(candidate.url) ? candidate : null,
-          );
-          const storedPanelView = stored[PANEL_VIEW_STORAGE_KEY] as
-            | LinguaReadPanelView
-            | undefined;
-          if (storedPanelView === 'launch' || storedPanelView === 'words') {
-            setPanelView(storedPanelView);
-          }
-        })
+        .then(applySessionState)
         .catch(() => setLaunchContext(null));
     }
+
+    const handleSessionChange = (
+      changes: Record<string, chrome.storage.StorageChange>,
+      areaName: string,
+    ) => {
+      if (areaName !== 'session') return;
+      const nextState: Record<string, unknown> = {};
+      if (changes[PDF_LAUNCH_STORAGE_KEY]) {
+        nextState[PDF_LAUNCH_STORAGE_KEY] =
+          changes[PDF_LAUNCH_STORAGE_KEY].newValue;
+      }
+      if (changes[PANEL_VIEW_STORAGE_KEY]) {
+        nextState[PANEL_VIEW_STORAGE_KEY] =
+          changes[PANEL_VIEW_STORAGE_KEY].newValue;
+      }
+      applySessionState(nextState);
+    };
+    browser.storage?.onChanged?.addListener(handleSessionChange);
 
     void readVocabularyState()
       .then(setVocabulary)
       .catch(() => setError('LinguaRead could not load your saved words.'));
-    return subscribeToVocabularyState(setVocabulary);
+    const unsubscribeVocabulary = subscribeToVocabularyState(setVocabulary);
+
+    return () => {
+      unsubscribeVocabulary();
+      browser.storage?.onChanged?.removeListener(handleSessionChange);
+    };
   }, []);
 
   const openReader = async () => {
