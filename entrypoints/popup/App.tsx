@@ -14,20 +14,10 @@ type ActivePdf = {
   url: string;
 };
 
-type FileAccessState = 'allowed' | 'blocked' | 'checking';
-
-function checkLocalFileAccess(): Promise<boolean> {
-  return new Promise((resolve) => {
-    chrome.extension.isAllowedFileSchemeAccess(resolve);
-  });
-}
-
 function App() {
   const autoCloseTimer = useRef<number | null>(null);
   const [activePdf, setActivePdf] = useState<ActivePdf | null>(null);
   const [error, setError] = useState('');
-  const [fileAccess, setFileAccess] =
-    useState<FileAccessState>('checking');
   const [isOpening, setIsOpening] = useState(false);
 
   const stopAutoClose = () => {
@@ -49,7 +39,6 @@ function App() {
     ])
       .then(async ([[tab], stored]) => {
         if (!tab?.id || !isPdfUrl(tab.url)) {
-          setFileAccess('allowed');
           return;
         }
 
@@ -60,11 +49,6 @@ function App() {
         };
         setActivePdf(nextPdf);
 
-        const accessAllowed = tab.url.startsWith('file:')
-          ? await checkLocalFileAccess()
-          : true;
-        setFileAccess(accessAllowed ? 'allowed' : 'blocked');
-
         const autoPrompt = stored[
           AUTO_PROMPT_STORAGE_KEY
         ] as AutoPromptContext | null | undefined;
@@ -74,14 +58,13 @@ function App() {
           autoPrompt.expiresAt > Date.now();
         await browser.storage.session.remove(AUTO_PROMPT_STORAGE_KEY);
 
-        if (openedAutomatically && accessAllowed) {
+        if (openedAutomatically) {
           autoCloseTimer.current = window.setTimeout(() => {
             window.close();
           }, Math.max(1_000, autoPrompt.expiresAt - Date.now()));
         }
       })
       .catch(() => {
-        setFileAccess('allowed');
         setError('LinguaRead could not read the current tab.');
       });
 
@@ -93,30 +76,17 @@ function App() {
   }, []);
 
   const openReader = async () => {
-    if (!activePdf || isOpening || fileAccess === 'checking') return;
+    if (!activePdf || isOpening) return;
 
     stopAutoClose();
     setError('');
     setIsOpening(true);
     try {
-      if (activePdf.url.startsWith('file:') && fileAccess === 'allowed') {
-        try {
-          await chrome.permissions.request({
-            origins: ['file:///*'],
-          });
-        } catch {
-          // Navigation still proceeds so the reader can offer manual upload.
-        }
-      }
-
       const response = (await browser.runtime.sendMessage({
         type: OPEN_READER_MESSAGE,
         sourceUrl: activePdf.url,
       })) as OpenReaderResponse;
       if (!response?.ok) {
-        if (response?.permissionRequired) {
-          setFileAccess('blocked');
-        }
         throw new Error(response?.error || 'The reader did not open.');
       }
       window.close();
@@ -129,11 +99,6 @@ function App() {
       );
     }
   };
-
-  const isChecking = activePdf?.url.startsWith('file:') &&
-    fileAccess === 'checking';
-  const isBlocked = activePdf?.url.startsWith('file:') &&
-    fileAccess === 'blocked';
 
   return (
     <main className="popup-shell">
@@ -151,27 +116,15 @@ function App() {
           </h2>
           <p className="file-name">{activePdf.title}</p>
 
-          {isBlocked && (
-            <div className="permission-note">
-              <p>
-                Chrome file access is off. The reader will still open so you
-                can enable access or choose the PDF manually.
-              </p>
-            </div>
-          )}
           <p className="note">
             The original PDF stays unchanged.
           </p>
           <button
             type="button"
             onClick={() => void openReader()}
-            disabled={isOpening || isChecking}
+            disabled={isOpening}
           >
-            {isChecking
-              ? 'Checking access…'
-              : isOpening
-                ? 'Opening…'
-                : 'Open with LinguaRead'}
+            {isOpening ? 'Opening…' : 'Open with LinguaRead'}
           </button>
         </section>
       ) : (

@@ -30,7 +30,6 @@ import {
   writeVocabularyState,
 } from '../../lib/vocabularyStorage';
 import { isPdfUrl, pdfNameFromUrl } from '../../lib/pdfLaunch';
-import { readPdfBytes, type PdfDataSource } from '../../lib/pdfSource';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -59,7 +58,7 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
   setPageWordCount,
   setPdfError,
 }: {
-  file: File | string | PdfDataSource;
+  file: File | string;
   pageCount: number;
   renderedPageCount: number;
   viewerWidth: number;
@@ -140,10 +139,9 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
 function App() {
   const viewerRef = useRef<HTMLDivElement>(null);
   const pageWordCountsRef = useRef<Record<number, number>>({});
-  const [file, setFile] = useState<File | string | PdfDataSource | null>(null);
+  const [file, setFile] = useState<File | string | null>(null);
   const [fileName, setFileName] = useState('Choose a PDF to begin');
-  const [isLoadingSource, setIsLoadingSource] = useState(false);
-  const [localFileAccessBlocked, setLocalFileAccessBlocked] = useState(false);
+  const [localFileNeedsSelection, setLocalFileNeedsSelection] = useState(false);
   const [pageCount, setPageCount] = useState(0);
   const [renderedPageCount, setRenderedPageCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -168,43 +166,11 @@ function App() {
     if (!source || !isPdfUrl(source)) return;
 
     setFileName(pdfNameFromUrl(source));
-    if (!source.startsWith('file:')) {
-      setFile(source);
+    if (source.startsWith('file:')) {
+      setLocalFileNeedsSelection(true);
       return;
     }
-
-    let cancelled = false;
-    setIsLoadingSource(true);
-    void Promise.all([
-      new Promise<boolean>((resolve) => {
-        chrome.extension.isAllowedFileSchemeAccess(resolve);
-      }),
-      chrome.permissions.contains({ origins: ['file:///*'] }),
-    ])
-      .then(async ([fileSchemeAllowed, hostPermissionGranted]) => {
-        if (cancelled) return;
-        if (!fileSchemeAllowed || !hostPermissionGranted) {
-          setLocalFileAccessBlocked(true);
-          return;
-        }
-
-        const pdfData = await readPdfBytes(source);
-        if (!cancelled) setFile(pdfData);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPdfError(
-            'LinguaRead could not read this local PDF. Check local-file access or choose the PDF again.',
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingSource(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    setFile(source);
   }, []);
 
   useEffect(() => {
@@ -240,8 +206,7 @@ function App() {
     setActiveCard(null);
     setError('');
     setPdfError('');
-    setLocalFileAccessBlocked(false);
-    setIsLoadingSource(false);
+    setLocalFileNeedsSelection(false);
     setExtractedWords(0);
     setPageCount(0);
     setRenderedPageCount(0);
@@ -550,6 +515,7 @@ function App() {
         <label className="file-button">
           {file ? 'Choose another PDF' : 'Choose PDF'}
           <input
+            id="pdf-file-input"
             type="file"
             accept="application/pdf,.pdf"
             onChange={(event) => handleFile(event.target.files?.[0])}
@@ -657,30 +623,21 @@ function App() {
         </p>
       )}
 
-      {localFileAccessBlocked && (
+      {localFileNeedsSelection && (
         <div className="error-message permission-message" role="alert">
           <div>
-            <strong>Allow LinguaRead to open local PDFs.</strong>
+            <strong>Choose this local PDF to continue.</strong>
             <span>
-              Right-click the LinguaRead toolbar icon, select Manage extension,
-              and enable Allow access to file URLs. Then reopen this PDF.
+              Chrome opened LinguaRead but did not transfer the local file.
+              Select {fileName} once to continue. The original stays unchanged.
             </span>
           </div>
           <button
             type="button"
-            onClick={() =>
-              void browser.tabs
-                .create({
-                  url: `chrome://extensions/?id=${browser.runtime.id}`,
-                })
-                .catch(() =>
-                  setError(
-                    'Open chrome://extensions, select LinguaRead, and enable Allow access to file URLs.',
-                  ),
-                )
-            }
+            className="permission-action"
+            onClick={() => document.getElementById('pdf-file-input')?.click()}
           >
-            Open LinguaRead settings
+            Choose this PDF
           </button>
         </div>
       )}
@@ -694,9 +651,7 @@ function App() {
           )
         }
       >
-        {isLoadingSource ? (
-          <p className="reader-message">Opening this PDF…</p>
-        ) : !file ? (
+        {!file ? (
           <div className="empty-reader">
             <div className="empty-document" aria-hidden="true">
               <span>PDF</span>

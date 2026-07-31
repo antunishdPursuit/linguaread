@@ -354,7 +354,7 @@ button:focus-visible,
   gap: 4px;
 }
 
-.permission-message button {
+.permission-action {
   flex: 0 0 auto;
   padding: 9px 12px;
   border: 1px solid #7c2f21;
@@ -366,7 +366,7 @@ button:focus-visible,
   font-weight: 700;
 }
 
-.permission-message button:focus-visible {
+.permission-action:focus-visible {
   outline: 3px solid var(--teal);
   outline-offset: 2px;
 }

@@ -8,7 +8,6 @@ export default defineConfig({
       'Read English PDFs with focused Mandarin and simpler-English support.',
     minimum_chrome_version: '127',
     permissions: ['tabs', 'storage', 'sidePanel'],
-    optional_host_permissions: ['file:///*'],
     action: {
       default_title: 'LinguaRead — open a PDF to begin',
     },
