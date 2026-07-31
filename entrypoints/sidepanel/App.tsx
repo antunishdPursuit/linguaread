@@ -11,16 +11,6 @@ import {
   subscribeToVocabularyState,
   writeVocabularyState,
 } from '../../lib/vocabularyStorage';
-import {
-  OPEN_READER_MESSAGE,
-  PDF_LAUNCH_STORAGE_KEY,
-  PANEL_VIEW_STORAGE_KEY,
-  isPdfUrl,
-  pdfNameFromUrl,
-  type PdfLaunchContext,
-  type LinguaReadPanelView,
-  type OpenReaderResponse,
-} from '../../lib/pdfLaunch';
 
 type PanelTab = 'learning' | 'known';
 
@@ -71,10 +61,6 @@ function WordList({
 }
 
 function App() {
-  const [launchContext, setLaunchContext] = useState<PdfLaunchContext | null>(
-    null,
-  );
-  const [panelView, setPanelView] = useState<'launch' | 'words'>('launch');
   const [tab, setTab] = useState<PanelTab>('learning');
   const [query, setQuery] = useState('');
   const [vocabulary, setVocabulary] = useState<VocabularyState>(
@@ -84,89 +70,11 @@ function App() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const sessionStorage = browser.storage?.session;
-    const applySessionState = (stored: Record<string, unknown>) => {
-      if (PDF_LAUNCH_STORAGE_KEY in stored) {
-        const candidate = stored[PDF_LAUNCH_STORAGE_KEY] as
-          | PdfLaunchContext
-          | null
-          | undefined;
-        setLaunchContext(
-          candidate && isPdfUrl(candidate.url) ? candidate : null,
-        );
-      }
-      if (PANEL_VIEW_STORAGE_KEY in stored) {
-        const storedPanelView = stored[PANEL_VIEW_STORAGE_KEY] as
-          | LinguaReadPanelView
-          | undefined;
-        if (storedPanelView === 'launch' || storedPanelView === 'words') {
-          setPanelView(storedPanelView);
-        }
-      }
-    };
-
-    if (sessionStorage) {
-      void sessionStorage
-        .get([PDF_LAUNCH_STORAGE_KEY, PANEL_VIEW_STORAGE_KEY])
-        .then(applySessionState)
-        .catch(() => setLaunchContext(null));
-    }
-
-    const handleSessionChange = (
-      changes: Record<string, chrome.storage.StorageChange>,
-      areaName: string,
-    ) => {
-      if (areaName !== 'session') return;
-      const nextState: Record<string, unknown> = {};
-      if (changes[PDF_LAUNCH_STORAGE_KEY]) {
-        nextState[PDF_LAUNCH_STORAGE_KEY] =
-          changes[PDF_LAUNCH_STORAGE_KEY].newValue;
-      }
-      if (changes[PANEL_VIEW_STORAGE_KEY]) {
-        nextState[PANEL_VIEW_STORAGE_KEY] =
-          changes[PANEL_VIEW_STORAGE_KEY].newValue;
-      }
-      applySessionState(nextState);
-    };
-    browser.storage?.onChanged?.addListener(handleSessionChange);
-
     void readVocabularyState()
       .then(setVocabulary)
       .catch(() => setError('LinguaRead could not load your saved words.'));
-    const unsubscribeVocabulary = subscribeToVocabularyState(setVocabulary);
-
-    return () => {
-      unsubscribeVocabulary();
-      browser.storage?.onChanged?.removeListener(handleSessionChange);
-    };
+    return subscribeToVocabularyState(setVocabulary);
   }, []);
-
-  const openReader = async () => {
-    setError('');
-
-    try {
-      const response = (await browser.runtime.sendMessage({
-        type: OPEN_READER_MESSAGE,
-        sourceUrl: launchContext?.url,
-      })) as OpenReaderResponse;
-
-      if (!response?.ok) {
-        throw new Error(response?.error || 'The reader did not open.');
-      }
-
-      await browser.storage?.session?.set({
-        [PANEL_VIEW_STORAGE_KEY]: 'words',
-      });
-      setPanelView('words');
-      if (response.usedFilePickerFallback) {
-        setStatusMessage(
-          'Chrome opened LinguaRead without the local file. Choose the PDF again in the reader.',
-        );
-      }
-    } catch {
-      setError('LinguaRead could not open the reader. Try again.');
-    }
-  };
 
   const entries =
     tab === 'learning' ? vocabulary.learning : vocabulary.known;
@@ -216,68 +124,11 @@ function App() {
         <span className="level-badge">B2</span>
       </header>
 
-      <nav className="panel-view-switcher" aria-label="LinguaRead panel">
-          <button
-          className={panelView === 'launch' ? 'active' : ''}
-          onClick={() => {
-            setPanelView('launch');
-            void browser.storage?.session?.set({
-              [PANEL_VIEW_STORAGE_KEY]: 'launch',
-            });
-          }}
-        >
-          Read PDF
-        </button>
-        <button
-          className={panelView === 'words' ? 'active' : ''}
-          onClick={() => {
-            setPanelView('words');
-            void browser.storage?.session?.set({
-              [PANEL_VIEW_STORAGE_KEY]: 'words',
-            });
-          }}
-        >
-          Word lists
-        </button>
-      </nav>
+      <section className="panel-purpose" aria-labelledby="panel-title">
+        <p>Word lists</p>
+        <h2 id="panel-title">Your reading vocabulary</h2>
+      </section>
 
-      {panelView === 'launch' ? (
-        <section className="launch-card" aria-labelledby="launch-title">
-          <span className="launch-icon" aria-hidden="true">
-            PDF
-          </span>
-          <p className="launch-eyebrow">Current tab</p>
-          <h2 id="launch-title">
-            {launchContext
-              ? 'Read this PDF with LinguaRead'
-              : 'Open the LinguaRead reader'}
-          </h2>
-          <p className="launch-file">
-            {launchContext
-              ? pdfNameFromUrl(launchContext.url)
-              : 'Open a PDF, then select the pinned LinguaRead icon.'}
-          </p>
-          <p className="launch-note">
-            LinguaRead opens a separate reading view. It does not change the
-            original PDF.
-          </p>
-          <button className="launch-button" onClick={() => void openReader()}>
-            {launchContext ? 'Read this PDF' : 'Choose a PDF'}
-          </button>
-          {launchContext?.url.startsWith('file:') && (
-            <p className="file-access-note">
-              If Chrome blocks the file, enable “Allow access to file URLs” for
-              LinguaRead or use Choose PDF in the reader.
-            </p>
-          )}
-          {error && (
-            <p className="panel-error" role="alert">
-              {error}
-            </p>
-          )}
-        </section>
-      ) : (
-        <>
       <div className="tabs" role="tablist" aria-label="Vocabulary lists">
         <button
           role="tab"
@@ -322,8 +173,6 @@ function App() {
       )}
 
       <WordList entries={filteredEntries} tab={tab} onMove={moveWord} />
-        </>
-      )}
     </main>
   );
 }

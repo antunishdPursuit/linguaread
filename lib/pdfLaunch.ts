@@ -1,24 +1,22 @@
-export const PDF_LAUNCH_STORAGE_KEY = 'linguareadPdfLaunch';
-export const PANEL_VIEW_STORAGE_KEY = 'linguareadPanelView';
+export const AUTO_PROMPT_STORAGE_KEY = 'linguareadAutoPrompt';
+export const PROMPTED_PDF_TABS_STORAGE_KEY = 'linguareadPromptedPdfTabs';
 export const OPEN_READER_MESSAGE = 'linguaread:open-reader';
 
-export type LinguaReadPanelView = 'launch' | 'words';
+export type AutoPromptContext = {
+  expiresAt: number;
+  tabId: number;
+  url: string;
+};
 
 export type OpenReaderMessage = {
   type: typeof OPEN_READER_MESSAGE;
-  sourceUrl?: string;
+  sourceUrl: string;
 };
 
 export type OpenReaderResponse = {
   error?: string;
   ok: boolean;
-  usedFilePickerFallback: boolean;
-};
-
-export type PdfLaunchContext = {
-  capturedAt: number;
-  title: string;
-  url: string;
+  permissionRequired: boolean;
 };
 
 export function isPdfUrl(url?: string): url is string {
@@ -45,8 +43,12 @@ export function pdfNameFromUrl(url: string): string {
   }
 }
 
-export function viewerUrlForPdf(url: string): string {
-  const viewerUrl = new URL(browser.runtime.getURL('/viewer.html'));
-  viewerUrl.searchParams.set('source', url);
+export function viewerUrlForPdf(viewerBaseUrl: string, sourceUrl: string): string {
+  const viewerUrl = new URL(viewerBaseUrl);
+  viewerUrl.searchParams.set('source', sourceUrl);
   return viewerUrl.toString();
+}
+
+export function toolbarTitleForPdf(url: string): string {
+  return `Open ${pdfNameFromUrl(url)} with LinguaRead`;
 }

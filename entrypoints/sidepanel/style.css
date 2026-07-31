@@ -36,107 +36,6 @@ input:focus-visible {
   outline-offset: 2px;
 }
 
-.panel-view-switcher {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-top: 14px;
-  padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #e9e2d6;
-}
-
-.panel-view-switcher button {
-  min-height: 34px;
-  border: 0;
-  border-radius: 5px;
-  color: var(--muted);
-  background: transparent;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.panel-view-switcher button.active {
-  color: var(--ink);
-  background: var(--paper);
-  box-shadow: 0 2px 8px rgb(60 48 34 / 10%);
-}
-
-.launch-card {
-  margin-top: 14px;
-  padding: 22px 18px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--paper);
-  text-align: center;
-}
-
-.launch-icon {
-  display: grid;
-  width: 58px;
-  height: 72px;
-  margin: 2px auto 16px;
-  place-items: center;
-  border: 1px solid #c7bcab;
-  color: var(--orange);
-  background: #fffdf7;
-  box-shadow: 4px 4px 0 #d7cec0;
-  font-weight: 700;
-}
-
-.launch-eyebrow {
-  margin-bottom: 5px;
-  color: var(--orange);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.launch-card h2 {
-  margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 21px;
-  line-height: 1.15;
-}
-
-.launch-file,
-.launch-note,
-.file-access-note {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.launch-file {
-  margin: 9px 0 0;
-  overflow-wrap: anywhere;
-  font-weight: 700;
-}
-
-.launch-note {
-  margin: 12px 0 0;
-}
-
-.launch-button {
-  width: 100%;
-  min-height: 40px;
-  margin-top: 18px;
-  border: 1px solid var(--orange);
-  border-radius: 6px;
-  color: #fff;
-  background: var(--orange);
-  font-weight: 700;
-}
-
-.file-access-note {
-  margin: 12px 0 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-  text-align: left;
-}
-
 .panel-shell {
   min-height: 100vh;
   padding: 0 16px 24px;
@@ -195,6 +94,28 @@ p {
   background: var(--gold);
   font-size: 11px;
   font-weight: 700;
+}
+
+.panel-purpose {
+  margin-inline: -16px;
+  padding: 13px 16px 12px;
+  border-bottom: 1px solid var(--line);
+  background: #f9f4ea;
+}
+
+.panel-purpose p {
+  margin-bottom: 3px;
+  color: var(--orange);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.panel-purpose h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
 }
 
 .tabs {

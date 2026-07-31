@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { isPdfUrl, pdfNameFromUrl } from './pdfLaunch';
+import {
+  isPdfUrl,
+  pdfNameFromUrl,
+  toolbarTitleForPdf,
+  viewerUrlForPdf,
+} from './pdfLaunch';
 
 describe('PDF launch helpers', () => {
   it('accepts local and web PDF URLs', () => {
@@ -21,5 +26,22 @@ describe('PDF launch helpers', () => {
         'https://example.com/files/MIT%20CASE%20-%20Ferrari%202025.pdf',
       ),
     ).toBe('MIT CASE - Ferrari 2025.pdf');
+  });
+
+  it('passes the selected PDF to the extension reader', () => {
+    const source = 'https://example.com/files/example.pdf';
+    const viewerUrl = viewerUrlForPdf(
+      'chrome-extension://example/viewer.html',
+      source,
+    );
+    expect(new URL(viewerUrl).searchParams.get('source')).toBe(source);
+  });
+
+  it('describes the selected PDF in the toolbar', () => {
+    expect(
+      toolbarTitleForPdf(
+        'file:///C:/Users/Dennis/Downloads/MIT%20CASE%20-%20Ferrari%202025.pdf',
+      ),
+    ).toBe('Open MIT CASE - Ferrari 2025.pdf with LinguaRead');
   });
 });

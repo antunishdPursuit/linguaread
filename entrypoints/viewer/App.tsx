@@ -29,11 +29,8 @@ import {
   vocabularyListFor,
   writeVocabularyState,
 } from '../../lib/vocabularyStorage';
-import {
-  PANEL_VIEW_STORAGE_KEY,
-  isPdfUrl,
-  pdfNameFromUrl,
-} from '../../lib/pdfLaunch';
+import { isPdfUrl, pdfNameFromUrl } from '../../lib/pdfLaunch';
+import { readPdfBytes, type PdfDataSource } from '../../lib/pdfSource';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -60,9 +57,9 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
   setRenderedPageCount,
   setPageAspectRatio,
   setPageWordCount,
-  setError,
+  setPdfError,
 }: {
-  file: File | string;
+  file: File | string | PdfDataSource;
   pageCount: number;
   renderedPageCount: number;
   viewerWidth: number;
@@ -71,7 +68,7 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
   setRenderedPageCount: Dispatch<SetStateAction<number>>;
   setPageAspectRatio: Dispatch<SetStateAction<number>>;
   setPageWordCount: (pageNumber: number, wordCount: number) => void;
-  setError: Dispatch<SetStateAction<string>>;
+  setPdfError: Dispatch<SetStateAction<string>>;
 }) {
   return (
     <Document
@@ -82,7 +79,11 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
         setPageCount(numPages);
         setRenderedPageCount(Math.min(3, numPages));
       }}
-      onLoadError={(reason) => setError(reason.message)}
+      onLoadError={() =>
+        setPdfError(
+          'LinguaRead could not read this PDF. Check local-file access or choose the PDF again.',
+        )
+      }
     >
       <div className="pdf-pages">
         {Array.from({ length: renderedPageCount }, (_, index) => {
@@ -139,8 +140,10 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
 function App() {
   const viewerRef = useRef<HTMLDivElement>(null);
   const pageWordCountsRef = useRef<Record<number, number>>({});
-  const [file, setFile] = useState<File | string | null>(null);
+  const [file, setFile] = useState<File | string | PdfDataSource | null>(null);
   const [fileName, setFileName] = useState('Choose a PDF to begin');
+  const [isLoadingSource, setIsLoadingSource] = useState(false);
+  const [localFileAccessBlocked, setLocalFileAccessBlocked] = useState(false);
   const [pageCount, setPageCount] = useState(0);
   const [renderedPageCount, setRenderedPageCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -157,13 +160,51 @@ function App() {
   );
   const [statusMessage, setStatusMessage] = useState('');
   const [error, setError] = useState('');
+  const [pdfError, setPdfError] = useState('');
 
   useEffect(() => {
-    const source = new URLSearchParams(window.location.search).get('source');
-    if (source && isPdfUrl(source)) {
+    const parameters = new URLSearchParams(window.location.search);
+    const source = parameters.get('source');
+    if (!source || !isPdfUrl(source)) return;
+
+    setFileName(pdfNameFromUrl(source));
+    if (!source.startsWith('file:')) {
       setFile(source);
-      setFileName(pdfNameFromUrl(source));
+      return;
     }
+
+    let cancelled = false;
+    setIsLoadingSource(true);
+    void Promise.all([
+      new Promise<boolean>((resolve) => {
+        chrome.extension.isAllowedFileSchemeAccess(resolve);
+      }),
+      chrome.permissions.contains({ origins: ['file:///*'] }),
+    ])
+      .then(async ([fileSchemeAllowed, hostPermissionGranted]) => {
+        if (cancelled) return;
+        if (!fileSchemeAllowed || !hostPermissionGranted) {
+          setLocalFileAccessBlocked(true);
+          return;
+        }
+
+        const pdfData = await readPdfBytes(source);
+        if (!cancelled) setFile(pdfData);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPdfError(
+            'LinguaRead could not read this local PDF. Check local-file access or choose the PDF again.',
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingSource(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -198,6 +239,9 @@ function App() {
   const handleFile = useCallback((nextFile?: File) => {
     setActiveCard(null);
     setError('');
+    setPdfError('');
+    setLocalFileAccessBlocked(false);
+    setIsLoadingSource(false);
     setExtractedWords(0);
     setPageCount(0);
     setRenderedPageCount(0);
@@ -325,12 +369,14 @@ function App() {
 
   const openSidePanel = useCallback(async () => {
     try {
-      await browser.storage.session.set({
-        [PANEL_VIEW_STORAGE_KEY]: 'words',
+      const currentTab = await browser.tabs.getCurrent();
+      if (currentTab?.id === undefined) throw new Error('Reader tab not found');
+      await chrome.sidePanel.setOptions({
+        enabled: true,
+        path: '/sidepanel.html',
+        tabId: currentTab.id,
       });
-      const currentWindow = await chrome.windows.getCurrent();
-      if (currentWindow.id === undefined) throw new Error('Window not found');
-      await chrome.sidePanel.open({ windowId: currentWindow.id });
+      await chrome.sidePanel.open({ tabId: currentTab.id });
     } catch {
       setError('Chrome could not open your word lists. Try the button again.');
     }
@@ -502,7 +548,7 @@ function App() {
         </div>
 
         <label className="file-button">
-          Choose PDF
+          {file ? 'Choose another PDF' : 'Choose PDF'}
           <input
             type="file"
             accept="application/pdf,.pdf"
@@ -605,6 +651,40 @@ function App() {
         </p>
       )}
 
+      {pdfError && (
+        <p className="error-message" role="alert">
+          {pdfError}
+        </p>
+      )}
+
+      {localFileAccessBlocked && (
+        <div className="error-message permission-message" role="alert">
+          <div>
+            <strong>Allow LinguaRead to open local PDFs.</strong>
+            <span>
+              Right-click the LinguaRead toolbar icon, select Manage extension,
+              and enable Allow access to file URLs. Then reopen this PDF.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              void browser.tabs
+                .create({
+                  url: `chrome://extensions/?id=${browser.runtime.id}`,
+                })
+                .catch(() =>
+                  setError(
+                    'Open chrome://extensions, select LinguaRead, and enable Allow access to file URLs.',
+                  ),
+                )
+            }
+          >
+            Open LinguaRead settings
+          </button>
+        </div>
+      )}
+
       <section
         className="reader-stage"
         ref={viewerRef}
@@ -614,7 +694,9 @@ function App() {
           )
         }
       >
-        {!file ? (
+        {isLoadingSource ? (
+          <p className="reader-message">Opening this PDF…</p>
+        ) : !file ? (
           <div className="empty-reader">
             <div className="empty-document" aria-hidden="true">
               <span>PDF</span>
@@ -636,7 +718,7 @@ function App() {
             setRenderedPageCount={setRenderedPageCount}
             setPageAspectRatio={setPageAspectRatio}
             setPageWordCount={setPageWordCount}
-            setError={setError}
+            setPdfError={setPdfError}
           />
         )}
       </section>

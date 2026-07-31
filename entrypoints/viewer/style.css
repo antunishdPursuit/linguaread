@@ -342,6 +342,35 @@ button:focus-visible,
   background: #fbe7e1;
 }
 
+.permission-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.permission-message div {
+  display: grid;
+  gap: 4px;
+}
+
+.permission-message button {
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  border: 1px solid #7c2f21;
+  border-radius: 6px;
+  color: #fff;
+  background: #7c2f21;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.permission-message button:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+}
+
 .reader-stage {
   position: relative;
   height: clamp(560px, calc(100vh - 240px), 900px);

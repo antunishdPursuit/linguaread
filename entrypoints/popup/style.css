@@ -1,0 +1,100 @@
+:root {
+  color: #2e2a24;
+  background: #f5f0e6;
+  font-family: "Courier New", ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; }
+
+button { font: inherit; }
+
+button:focus-visible { outline: 3px solid #1f6f8b; outline-offset: 2px; }
+
+.popup-shell { width: 320px; padding: 16px; }
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #d8d0c2;
+}
+
+h1, h2, p { margin-top: 0; }
+
+h1, h2 { font-family: Georgia, "Times New Roman", serif; }
+
+h1 { margin-bottom: 0; font-size: 24px; }
+
+section { padding: 14px 0 2px; text-align: center; }
+
+.pdf-icon {
+  display: grid;
+  width: 34px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #c7bcab;
+  color: #c95d42;
+  background: #fffdf7;
+  box-shadow: 3px 3px 0 #d7cec0;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+h2 { margin-bottom: 7px; font-size: 19px; line-height: 1.15; }
+
+.file-name { margin-bottom: 9px; overflow-wrap: anywhere; font-size: 11px; font-weight: 700; }
+
+.note, .empty-state p { margin-bottom: 9px; color: #766f63; font-size: 11px; line-height: 1.45; }
+
+button {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 5px;
+  border: 1px solid #c95d42;
+  border-radius: 6px;
+  color: #fff;
+  background: #c95d42;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+button:disabled { cursor: wait; opacity: .7; }
+
+.permission-note {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #d8d0c2;
+  border-radius: 6px;
+  color: #625a4e;
+  background: #fffaf0;
+  text-align: left;
+}
+
+.permission-note p,
+.permission-note ol {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.permission-note ol {
+  margin-top: 8px;
+  padding-left: 20px;
+}
+
+.permission-note li + li { margin-top: 4px; }
+
+.permission-note code {
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: #eee6d9;
+}
+
+.empty-state { padding-bottom: 12px; }
+
+.error { margin: 14px 0 0; padding: 10px; border: 1px solid #c97c6b; border-radius: 6px; color: #7c2f21; background: #fbe7e1; font-size: 11px; line-height: 1.4; }
