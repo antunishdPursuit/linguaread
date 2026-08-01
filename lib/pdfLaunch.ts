@@ -44,6 +44,11 @@ export function pdfNameFromUrl(url: string): string {
   }
 }
 
+export function isPdfHandoffSearch(search: string): boolean {
+  const source = new URLSearchParams(search).get('source');
+  return Boolean(source && isPdfUrl(source));
+}
+
 export function viewerUrlForPdf(
   viewerBaseUrl: string,
   sourceUrl: string,

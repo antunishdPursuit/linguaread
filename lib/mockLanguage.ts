@@ -1,7 +1,6 @@
 import type {
   LanguageResult,
   VocabularyEntry,
-  VocabularyState,
 } from './types';
 
 // These records are UI fixtures, not the production B2 candidate source.
@@ -132,64 +131,3 @@ export function toVocabularyEntry(result: LanguageResult): VocabularyEntry {
   const { confidence: _confidence, ...entry } = result;
   return entry;
 }
-
-export const MOCK_VOCABULARY: VocabularyState = {
-  entries: [
-    toVocabularyEntry(MOCK_LANGUAGE_RESULTS[2]),
-    toVocabularyEntry(MOCK_LANGUAGE_RESULTS[1]),
-  ],
-};
-
-export function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
-
-export function renderInteractiveText(
-  value: string,
-  vocabulary: VocabularyState,
-  unmarkedWords: ReadonlySet<string> = new Set(),
-): string {
-  const wordPattern = /[A-Za-z]+(?:['’\-][A-Za-z]+)*/g;
-  let cursor = 0;
-  let markup = '';
-
-  for (const match of value.matchAll(wordPattern)) {
-    const sourceWord = match[0];
-    const start = match.index;
-    markup += escapeHtml(value.slice(cursor, start));
-
-    const normalizedWord = sourceWord.toLowerCase();
-    const result = RESULTS_BY_WORD.get(normalizedWord);
-    const isMarked = Boolean(result) && !unmarkedWords.has(normalizedWord);
-    const isSaved = Boolean(
-      result &&
-        vocabulary.entries.some((entry) => entry.id === result.id),
-    );
-    const classes = [
-      'linguaread-word',
-      isMarked ? 'is-candidate' : '',
-      isMarked && result?.action === 'use_mandarin' ? 'is-mandarin' : '',
-      isMarked && result?.action === 'use_synonym' ? 'is-synonym' : '',
-      isSaved ? 'is-saved' : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-
-    // All words can be double-clicked. Only prepared candidates enter the tab order.
-    markup += `<span class="${classes}" data-linguaread-word="${escapeHtml(
-      sourceWord,
-    )}"${result ? ` data-linguaread-id="${escapeHtml(result.id)}"` : ''}${
-      isMarked ? ' data-linguaread-candidate="true" tabindex="0" role="button"' : ''
-    }>${escapeHtml(sourceWord)}</span>`;
-    cursor = start + sourceWord.length;
-  }
-
-  return markup + escapeHtml(value.slice(cursor));
-}
-
-export const renderMockText = renderInteractiveText;

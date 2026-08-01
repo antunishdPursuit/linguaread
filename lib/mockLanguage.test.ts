@@ -1,49 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   MOCK_LANGUAGE_RESULTS,
-  escapeHtml,
-  renderInteractiveText,
   toVocabularyEntry,
 } from './mockLanguage';
 import {
-  EMPTY_VOCABULARY_STATE,
+  createPendingVocabularyEntry,
   dictionaryHasEntry,
+  dictionaryHasWord,
+  EMPTY_VOCABULARY_STATE,
   normalizeVocabularyState,
   removeVocabularyEntry,
   saveVocabularyEntry,
 } from './vocabularyStorage';
-
-describe('interactive PDF text renderer', () => {
-  it('escapes PDF text before adding markup', () => {
-    expect(escapeHtml('<script>bad()</script>')).toBe(
-      '&lt;script&gt;bad()&lt;/script&gt;',
-    );
-  });
-
-  it('makes every English word interactive without replacing source text', () => {
-    const result = renderInteractiveText(
-      'Tradition and innovation drive each other.',
-      EMPTY_VOCABULARY_STATE,
-    );
-
-    expect(result.match(/data-linguaread-word=/g)).toHaveLength(6);
-    expect(result).toContain('data-linguaread-word="innovation"');
-    expect(result).toContain('is-candidate');
-    expect(result).toContain('>innovation<');
-    expect(result).not.toContain(MOCK_LANGUAGE_RESULTS[0].displayWord);
-  });
-
-  it('removes a candidate marker without removing word interaction', () => {
-    const result = renderInteractiveText(
-      'Innovation matters.',
-      EMPTY_VOCABULARY_STATE,
-      new Set(['innovation']),
-    );
-
-    expect(result).toContain('data-linguaread-word="Innovation"');
-    expect(result).not.toContain('is-candidate');
-  });
-});
 
 describe('Dictionary state', () => {
   const innovation = toVocabularyEntry(MOCK_LANGUAGE_RESULTS[0]);
@@ -71,5 +39,29 @@ describe('Dictionary state', () => {
     });
 
     expect(migrated.entries).toHaveLength(1);
+  });
+
+  it('saves an unknown selected word without inventing language details', () => {
+    const pending = createPendingVocabularyEntry('championship');
+    const saved = saveVocabularyEntry(EMPTY_VOCABULARY_STATE, pending);
+
+    expect(dictionaryHasWord(saved, 'Championship')).toBe(true);
+    expect(saved.entries[0]).toMatchObject({
+      cefr: 'unknown',
+      definition: '',
+      mandarin: '',
+      sourceWord: 'championship',
+    });
+  });
+
+  it('replaces a pending word when its complete entry becomes available', () => {
+    const pending = createPendingVocabularyEntry('innovation');
+    const ready = toVocabularyEntry(MOCK_LANGUAGE_RESULTS[0]);
+    const saved = saveVocabularyEntry(
+      saveVocabularyEntry(EMPTY_VOCABULARY_STATE, pending),
+      ready,
+    );
+
+    expect(saved.entries).toEqual([ready]);
   });
 });

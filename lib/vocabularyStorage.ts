@@ -7,14 +7,44 @@ export const EMPTY_VOCABULARY_STATE: VocabularyState = {
   entries: [],
 };
 
+function normalizedSourceWord(sourceWord: string): string {
+  return sourceWord.trim().toLowerCase();
+}
+
+export function createPendingVocabularyEntry(
+  sourceWord: string,
+): VocabularyEntry {
+  const normalizedWord = normalizedSourceWord(sourceWord);
+  return {
+    action: 'keep_english',
+    cefr: 'unknown',
+    contextualExample: '',
+    definition: '',
+    displayWord: sourceWord,
+    id: `pending-${normalizedWord}`,
+    lemma: normalizedWord,
+    mandarin: '',
+    pinyin: '',
+    shortMeaning: '',
+    simplerEnglish: '',
+    sourceWord,
+    usageNote: '',
+  };
+}
+
 export function saveVocabularyEntry(
   state: VocabularyState,
   entry: VocabularyEntry,
 ): VocabularyState {
+  const normalizedWord = normalizedSourceWord(entry.sourceWord);
   return {
     entries: [
       entry,
-      ...state.entries.filter((candidate) => candidate.id !== entry.id),
+      ...state.entries.filter(
+        (candidate) =>
+          candidate.id !== entry.id &&
+          normalizedSourceWord(candidate.sourceWord) !== normalizedWord,
+      ),
     ],
   };
 }
@@ -33,6 +63,16 @@ export function dictionaryHasEntry(
   entryId: string,
 ): boolean {
   return state.entries.some((entry) => entry.id === entryId);
+}
+
+export function dictionaryHasWord(
+  state: VocabularyState,
+  sourceWord: string,
+): boolean {
+  const normalizedWord = normalizedSourceWord(sourceWord);
+  return state.entries.some(
+    (entry) => normalizedSourceWord(entry.sourceWord) === normalizedWord,
+  );
 }
 
 function isVocabularyEntry(value: unknown): value is VocabularyEntry {

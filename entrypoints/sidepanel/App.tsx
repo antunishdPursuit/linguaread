@@ -23,13 +23,21 @@ function DictionaryEntries({ entries }: { entries: VocabularyEntry[] }) {
         <li key={entry.id} className="word-item">
           <div className="word-title">
             <div>
-              <span className="mandarin">{entry.mandarin}</span>
+              {entry.mandarin && (
+                <span className="mandarin">{entry.mandarin}</span>
+              )}
               <strong>{entry.sourceWord}</strong>
             </div>
-            <span className="cefr">{entry.cefr}</span>
+            <span className="cefr">
+              {entry.cefr === 'unknown' ? 'Pending' : entry.cefr}
+            </span>
           </div>
-          <p className="pinyin">{entry.pinyin}</p>
-          <p className="meaning">{entry.definition || entry.shortMeaning}</p>
+          {entry.pinyin && <p className="pinyin">{entry.pinyin}</p>}
+          <p className="meaning">
+            {entry.definition ||
+              entry.shortMeaning ||
+              'Language details will be added when the service is connected.'}
+          </p>
           {entry.simplerEnglish && (
             <p className="simpler">
               Simpler English: <strong>{entry.simplerEnglish}</strong>

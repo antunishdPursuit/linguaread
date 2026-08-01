@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isPdfHandoffSearch,
   isPdfUrl,
   pdfNameFromUrl,
   toolbarTitleForPdf,
@@ -55,5 +56,18 @@ describe('PDF launch helpers', () => {
         'file:///C:/Users/Dennis/Downloads/MIT%20CASE%20-%20Ferrari%202025.pdf',
       ),
     ).toBe('Open MIT CASE - Ferrari 2025.pdf with LinguaRead');
+  });
+
+  it('detects a reader opened from an existing PDF tab', () => {
+    expect(
+      isPdfHandoffSearch(
+        '?source=file%3A%2F%2F%2FC%3A%2FUsers%2FDennis%2Fcase.pdf',
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps a directly opened reader in standalone mode', () => {
+    expect(isPdfHandoffSearch('')).toBe(false);
+    expect(isPdfHandoffSearch('?source=https%3A%2F%2Fexample.com')).toBe(false);
   });
 });
