@@ -11,6 +11,7 @@ export type AutoPromptContext = {
 export type OpenReaderMessage = {
   type: typeof OPEN_READER_MESSAGE;
   sourceUrl: string;
+  transferId?: string;
 };
 
 export type OpenReaderResponse = {
@@ -43,9 +44,14 @@ export function pdfNameFromUrl(url: string): string {
   }
 }
 
-export function viewerUrlForPdf(viewerBaseUrl: string, sourceUrl: string): string {
+export function viewerUrlForPdf(
+  viewerBaseUrl: string,
+  sourceUrl: string,
+  transferId?: string,
+): string {
   const viewerUrl = new URL(viewerBaseUrl);
   viewerUrl.searchParams.set('source', sourceUrl);
+  if (transferId) viewerUrl.searchParams.set('transfer', transferId);
   return viewerUrl.toString();
 }
 

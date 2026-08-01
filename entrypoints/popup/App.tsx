@@ -7,6 +7,7 @@ import {
   type AutoPromptContext,
   type OpenReaderResponse,
 } from '../../lib/pdfLaunch';
+import { storePdfTransfer } from '../../lib/pdfTransfer';
 
 type ActivePdf = {
   tabId: number;
@@ -82,9 +83,26 @@ function App() {
     setError('');
     setIsOpening(true);
     try {
+      let transferId: string | undefined;
+      if (activePdf.url.startsWith('file:')) {
+        // Opening the action popup is the user gesture that grants activeTab.
+        // Capture the PDF now because the reader tab does not inherit that access.
+        const response = await fetch(activePdf.url);
+        if (!response.ok) {
+          throw new Error(
+            `Temporary PDF access failed with status ${response.status}.`,
+          );
+        }
+        transferId = await storePdfTransfer(
+          await response.blob(),
+          pdfNameFromUrl(activePdf.url),
+        );
+      }
+
       const response = (await browser.runtime.sendMessage({
         type: OPEN_READER_MESSAGE,
         sourceUrl: activePdf.url,
+        transferId,
       })) as OpenReaderResponse;
       if (!response?.ok) {
         throw new Error(response?.error || 'The reader did not open.');

@@ -165,6 +165,7 @@ export default defineBackground(() => {
             url: viewerUrlForPdf(
               browser.runtime.getURL(READER_PATH),
               message.sourceUrl,
+              message.transferId,
             ),
           });
           if (readerTab.id !== undefined) {

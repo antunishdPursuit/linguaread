@@ -30,6 +30,7 @@ import {
   writeVocabularyState,
 } from '../../lib/vocabularyStorage';
 import { isPdfUrl, pdfNameFromUrl } from '../../lib/pdfLaunch';
+import { consumePdfTransfer } from '../../lib/pdfTransfer';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -161,19 +162,6 @@ function App() {
   const [pdfError, setPdfError] = useState('');
 
   useEffect(() => {
-    const parameters = new URLSearchParams(window.location.search);
-    const source = parameters.get('source');
-    if (!source || !isPdfUrl(source)) return;
-
-    setFileName(pdfNameFromUrl(source));
-    if (source.startsWith('file:')) {
-      setLocalFileNeedsSelection(true);
-      return;
-    }
-    setFile(source);
-  }, []);
-
-  useEffect(() => {
     const element = viewerRef.current;
     if (!element) return;
 
@@ -232,6 +220,43 @@ function App() {
     setFile(nextFile);
     setFileName(nextFile.name);
   }, []);
+
+  useEffect(() => {
+    const parameters = new URLSearchParams(window.location.search);
+    const source = parameters.get('source');
+    if (!source || !isPdfUrl(source)) return;
+
+    const sourceName = pdfNameFromUrl(source);
+    setFileName(sourceName);
+    if (!source.startsWith('file:')) {
+      setFile(source);
+      return;
+    }
+
+    const transferId = parameters.get('transfer');
+    if (!transferId) {
+      setLocalFileNeedsSelection(true);
+      return;
+    }
+
+    // The popup stores the local PDF while Chrome's temporary access is active.
+    // Consume it once so later reader tabs cannot reuse a stale local file.
+    void consumePdfTransfer(transferId)
+      .then((transfer) => {
+        if (!transfer) {
+          setLocalFileNeedsSelection(true);
+          return;
+        }
+        handleFile(
+          new File([transfer.blob], transfer.fileName, {
+            type: 'application/pdf',
+          }),
+        );
+      })
+      .catch(() => {
+        setLocalFileNeedsSelection(true);
+      });
+  }, [handleFile]);
 
   const setPageWordCount = useCallback(
     (pageNumber: number, wordCount: number) => {

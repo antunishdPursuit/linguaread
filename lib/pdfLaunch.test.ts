@@ -37,6 +37,18 @@ describe('PDF launch helpers', () => {
     expect(new URL(viewerUrl).searchParams.get('source')).toBe(source);
   });
 
+  it('passes a temporary local PDF transfer to the extension reader', () => {
+    const viewerUrl = viewerUrlForPdf(
+      'chrome-extension://example/viewer.html',
+      'file:///C:/Users/Dennis/Downloads/example.pdf',
+      'transfer-123',
+    );
+
+    expect(new URL(viewerUrl).searchParams.get('transfer')).toBe(
+      'transfer-123',
+    );
+  });
+
   it('describes the selected PDF in the toolbar', () => {
     expect(
       toolbarTitleForPdf(
