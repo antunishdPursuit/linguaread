@@ -2,66 +2,74 @@ import { describe, expect, it } from 'vitest';
 import {
   MOCK_LANGUAGE_RESULTS,
   escapeHtml,
-  renderMockText,
+  renderInteractiveText,
   toVocabularyEntry,
 } from './mockLanguage';
 import {
   EMPTY_VOCABULARY_STATE,
-  moveVocabularyEntry,
-  vocabularyListFor,
+  dictionaryHasEntry,
+  normalizeVocabularyState,
+  removeVocabularyEntry,
+  saveVocabularyEntry,
 } from './vocabularyStorage';
 
-describe('mock language renderer', () => {
-  it('escapes PDF text before adding mock markup', () => {
+describe('interactive PDF text renderer', () => {
+  it('escapes PDF text before adding markup', () => {
     expect(escapeHtml('<script>bad()</script>')).toBe(
       '&lt;script&gt;bad()&lt;/script&gt;',
     );
   });
 
-  it('marks innovation without replacing its original PDF text', () => {
-    const result = renderMockText('Tradition and innovation drive each other.');
+  it('makes every English word interactive without replacing source text', () => {
+    const result = renderInteractiveText(
+      'Tradition and innovation drive each other.',
+      EMPTY_VOCABULARY_STATE,
+    );
 
+    expect(result.match(/data-linguaread-word=/g)).toHaveLength(6);
     expect(result).toContain('data-linguaread-word="innovation"');
-    expect(result).toContain('data-linguaread-action="use_mandarin"');
+    expect(result).toContain('is-candidate');
     expect(result).toContain('>innovation<');
     expect(result).not.toContain(MOCK_LANGUAGE_RESULTS[0].displayWord);
   });
 
-  it('marks several prepared words while preserving their source text', () => {
-    const result = renderMockText(
-      'The controlled strategy supported innovation and craftsmanship.',
+  it('removes a candidate marker without removing word interaction', () => {
+    const result = renderInteractiveText(
+      'Innovation matters.',
+      EMPTY_VOCABULARY_STATE,
+      new Set(['innovation']),
     );
 
-    expect(result.match(/data-linguaread-id=/g)).toHaveLength(3);
-    expect(result).toContain('>controlled<');
-    expect(result).toContain('>innovation<');
-    expect(result).toContain('>craftsmanship<');
-    expect(result).not.toContain(MOCK_LANGUAGE_RESULTS[1].displayWord);
-  });
-
-  it('leaves unrelated text unchanged', () => {
-    expect(renderMockText('Ferrari builds cars.')).toBe('Ferrari builds cars.');
+    expect(result).toContain('data-linguaread-word="Innovation"');
+    expect(result).not.toContain('is-candidate');
   });
 });
 
-describe('vocabulary state', () => {
+describe('Dictionary state', () => {
   const innovation = toVocabularyEntry(MOCK_LANGUAGE_RESULTS[0]);
 
-  it('starts with no assumed Learning or Known words', () => {
-    expect(EMPTY_VOCABULARY_STATE).toEqual({ learning: [], known: [] });
+  it('starts with one empty Dictionary', () => {
+    expect(EMPTY_VOCABULARY_STATE).toEqual({ entries: [] });
   });
 
-  it('moves a word between mutually exclusive lists', () => {
-    const learning = moveVocabularyEntry(
-      EMPTY_VOCABULARY_STATE,
+  it('saves each entry once and removes it deliberately', () => {
+    const saved = saveVocabularyEntry(
+      saveVocabularyEntry(EMPTY_VOCABULARY_STATE, innovation),
       innovation,
-      'learning',
     );
-    expect(vocabularyListFor(learning, innovation.id)).toBe('learning');
+    expect(saved.entries).toHaveLength(1);
+    expect(dictionaryHasEntry(saved, innovation.id)).toBe(true);
 
-    const known = moveVocabularyEntry(learning, innovation, 'known');
-    expect(vocabularyListFor(known, innovation.id)).toBe('known');
-    expect(known.learning).toHaveLength(0);
-    expect(known.known).toHaveLength(1);
+    const removed = removeVocabularyEntry(saved, innovation.id);
+    expect(dictionaryHasEntry(removed, innovation.id)).toBe(false);
+  });
+
+  it('migrates legacy Learning and Known entries into one Dictionary', () => {
+    const migrated = normalizeVocabularyState({
+      learning: [innovation],
+      known: [innovation],
+    });
+
+    expect(migrated.entries).toHaveLength(1);
   });
 });

@@ -6,33 +6,39 @@ export type LanguageAction =
   | 'use_mandarin';
 
 export type LanguageResult = {
-  id: string;
-  sourceWord: string;
-  lemma: string;
-  cefr: CefrLevel;
   action: LanguageAction;
+  cefr: CefrLevel;
+  confidence: number;
+  contextualExample: string;
+  definition: string;
   displayWord: string;
+  id: string;
+  lemma: string;
   mandarin: string;
   pinyin: string;
   shortMeaning: string;
-  confidence: number;
+  simplerEnglish: string;
+  sourceWord: string;
+  usageNote: string;
 };
 
 export type VocabularyEntry = Pick<
   LanguageResult,
-  | 'id'
-  | 'sourceWord'
+  | 'action'
+  | 'cefr'
+  | 'contextualExample'
+  | 'definition'
   | 'displayWord'
+  | 'id'
+  | 'lemma'
   | 'mandarin'
   | 'pinyin'
   | 'shortMeaning'
-  | 'cefr'
-  | 'action'
+  | 'simplerEnglish'
+  | 'sourceWord'
+  | 'usageNote'
 >;
 
 export type VocabularyState = {
-  learning: VocabularyEntry[];
-  known: VocabularyEntry[];
+  entries: VocabularyEntry[];
 };
-
-export type VocabularyList = keyof VocabularyState;

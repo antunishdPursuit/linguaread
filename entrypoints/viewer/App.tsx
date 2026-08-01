@@ -13,20 +13,17 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import {
   MOCK_LANGUAGE_RESULTS,
-  renderMockText,
+  languageFixtureForWord,
+  renderInteractiveText,
   toVocabularyEntry,
 } from '../../lib/mockLanguage';
-import type {
-  LanguageResult,
-  VocabularyList,
-  VocabularyState,
-} from '../../lib/types';
+import type { LanguageResult, VocabularyState } from '../../lib/types';
 import {
   EMPTY_VOCABULARY_STATE,
-  moveVocabularyEntry,
+  dictionaryHasEntry,
   readVocabularyState,
+  saveVocabularyEntry,
   subscribeToVocabularyState,
-  vocabularyListFor,
   writeVocabularyState,
 } from '../../lib/vocabularyStorage';
 import { isPdfUrl, pdfNameFromUrl } from '../../lib/pdfLaunch';
@@ -37,8 +34,11 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 type CardMode = 'preview' | 'full';
 
 type ActiveCard = {
+  contextSentence: string;
+  isCandidate: boolean;
   mode: CardMode;
-  result: LanguageResult;
+  result: LanguageResult | null;
+  sourceWord: string;
   left: number;
   top: number;
 };
@@ -53,6 +53,7 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
   renderedPageCount,
   viewerWidth,
   vocabulary,
+  unmarkedWords,
   setPageCount,
   setRenderedPageCount,
   setPageAspectRatio,
@@ -64,6 +65,7 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
   renderedPageCount: number;
   viewerWidth: number;
   vocabulary: VocabularyState;
+  unmarkedWords: ReadonlySet<string>;
   setPageCount: Dispatch<SetStateAction<number>>;
   setRenderedPageCount: Dispatch<SetStateAction<number>>;
   setPageAspectRatio: Dispatch<SetStateAction<number>>;
@@ -100,7 +102,7 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
                 pageNumber={pageNumber}
                 width={viewerWidth}
                 customTextRenderer={({ str }) =>
-                  renderMockText(str, vocabulary)
+                  renderInteractiveText(str, vocabulary, unmarkedWords)
                 }
                 onLoadSuccess={(page) => {
                   if (pageNumber === 1) {
@@ -157,6 +159,7 @@ function App() {
   const [vocabulary, setVocabulary] = useState<VocabularyState>(
     EMPTY_VOCABULARY_STATE,
   );
+  const [unmarkedWords, setUnmarkedWords] = useState<Set<string>>(new Set());
   const [statusMessage, setStatusMessage] = useState('');
   const [error, setError] = useState('');
   const [pdfError, setPdfError] = useState('');
@@ -186,7 +189,7 @@ function App() {
   useEffect(() => {
     void readVocabularyState()
       .then(setVocabulary)
-      .catch(() => setError('LinguaRead could not load your saved word lists.'));
+      .catch(() => setError('LinguaRead could not load your Dictionary.'));
     return subscribeToVocabularyState(setVocabulary);
   }, []);
 
@@ -202,6 +205,7 @@ function App() {
     setRequestedPage(null);
     setZoom(1);
     setFitMode('width');
+    setUnmarkedWords(new Set());
     pageWordCountsRef.current = {};
 
     if (!nextFile) {
@@ -368,24 +372,32 @@ function App() {
       });
       await chrome.sidePanel.open({ tabId: currentTab.id });
     } catch {
-      setError('Chrome could not open your word lists. Try the button again.');
+      setError('Chrome could not open your Dictionary. Try the button again.');
     }
   }, []);
 
   const findWordTarget = useCallback(
     (target: EventTarget | null): HTMLElement | null => {
       return target instanceof HTMLElement
-        ? target.closest<HTMLElement>('[data-linguaread-id]')
+        ? target.closest<HTMLElement>('[data-linguaread-word]')
         : null;
     },
     [],
   );
 
   const showCard = useCallback((target: HTMLElement, mode: CardMode) => {
-    const result = MOCK_LANGUAGE_RESULTS.find(
-      (candidate) => candidate.id === target.dataset.linguareadId,
-    );
-    if (!result) return;
+    const sourceWord = target.dataset.linguareadWord;
+    if (!sourceWord) return;
+    const result = languageFixtureForWord(sourceWord);
+    const pageText =
+      target.closest<HTMLElement>('[data-page-number]')?.textContent ?? '';
+    const normalizedPageText = pageText.replace(/\s+/g, ' ').trim();
+    const contextSentence =
+      normalizedPageText
+        .split(/(?<=[.!?])\s+/)
+        .find((sentence) =>
+          sentence.toLowerCase().includes(sourceWord.toLowerCase()),
+        ) ?? '';
 
     const rect = target.getBoundingClientRect();
     const cardWidth = mode === 'full' ? 340 : 280;
@@ -401,7 +413,15 @@ function App() {
     );
     const top = Math.max(16, Math.min(rect.top - 12, window.innerHeight - 260));
 
-    setActiveCard({ mode, result, left, top });
+    setActiveCard({
+      contextSentence,
+      isCandidate: target.dataset.linguareadCandidate === 'true',
+      mode,
+      result,
+      sourceWord,
+      left,
+      top,
+    });
   }, []);
 
   useEffect(() => {
@@ -410,7 +430,7 @@ function App() {
 
     const handleMouseOver = (event: MouseEvent) => {
       const target = findWordTarget(event.target);
-      if (!target) return;
+      if (!target || target.dataset.linguareadCandidate !== 'true') return;
       showCard(target, 'preview');
     };
     const handleMouseOut = (event: MouseEvent) => {
@@ -425,7 +445,9 @@ function App() {
     };
     const handleFocusIn = (event: FocusEvent) => {
       const target = findWordTarget(event.target);
-      if (target) showCard(target, 'preview');
+      if (target?.dataset.linguareadCandidate === 'true') {
+        showCard(target, 'preview');
+      }
     };
     const handleFocusOut = (event: FocusEvent) => {
       if (!findWordTarget(event.target)) return;
@@ -459,22 +481,22 @@ function App() {
   }, [findWordTarget, showCard]);
 
   const mandarinCount = MOCK_LANGUAGE_RESULTS.filter(
-    (result) => result.action === 'use_mandarin',
+    (result) =>
+      result.action === 'use_mandarin' &&
+      !unmarkedWords.has(result.sourceWord.toLowerCase()),
   ).length;
   const synonymCount = MOCK_LANGUAGE_RESULTS.filter(
-    (result) => result.action === 'use_synonym',
+    (result) =>
+      result.action === 'use_synonym' &&
+      !unmarkedWords.has(result.sourceWord.toLowerCase()),
   ).length;
 
-  const moveActiveWord = async (destination: VocabularyList) => {
-    if (!activeCard) return;
+  const saveActiveWord = async () => {
+    if (!activeCard?.result) return;
     const entry = toVocabularyEntry(activeCard.result);
-    const nextState = moveVocabularyEntry(vocabulary, entry, destination);
+    const nextState = saveVocabularyEntry(vocabulary, entry);
     setVocabulary(nextState);
-    setStatusMessage(
-      `${entry.sourceWord} moved to ${
-        destination === 'learning' ? 'Learning' : 'Known Words'
-      }.`,
-    );
+    setStatusMessage(`${entry.sourceWord} saved to your Dictionary.`);
 
     try {
       await writeVocabularyState(nextState);
@@ -485,9 +507,29 @@ function App() {
     }
   };
 
-  const activeList = activeCard
-    ? vocabularyListFor(vocabulary, activeCard.result.id)
-    : null;
+  const toggleActiveMarker = () => {
+    if (!activeCard?.result) return;
+    const normalizedWord = activeCard.sourceWord.toLowerCase();
+    setUnmarkedWords((current) => {
+      const next = new Set(current);
+      if (next.has(normalizedWord)) next.delete(normalizedWord);
+      else next.add(normalizedWord);
+      return next;
+    });
+    setActiveCard((current) =>
+      current ? { ...current, isCandidate: !current.isCandidate } : current,
+    );
+    setStatusMessage(
+      `${activeCard.sourceWord} marker ${
+        activeCard.isCandidate ? 'hidden' : 'restored'
+      } for this PDF.`,
+    );
+  };
+
+  const activeWordIsSaved = Boolean(
+    activeCard?.result &&
+      dictionaryHasEntry(vocabulary, activeCard.result.id),
+  );
 
   return (
     <main className="app-shell">
@@ -523,7 +565,7 @@ function App() {
 
           <button className="words-button" onClick={openSidePanel}>
             <span aria-hidden="true">▣</span>
-            Word lists
+            Dictionary
           </button>
         </div>
       </header>
@@ -533,7 +575,7 @@ function App() {
           <p className="eyebrow">PDF-first reading aid</p>
           <h1>LinguaRead</h1>
           <p>
-            Read the original layout with focused help for selected B2+ words.
+            Read the original layout. Double-click any word for help.
           </p>
         </div>
 
@@ -562,11 +604,8 @@ function App() {
           <span className="legend-item synonym">
             <i /> {synonymCount} simpler English hints
           </span>
-          <span className="legend-item known">
-            <i /> {vocabulary.known.length} known
-          </span>
-          <span className="legend-item learning">
-            <i /> {vocabulary.learning.length} learning
+          <span className="legend-item saved">
+            <i /> {vocabulary.entries.length} saved
           </span>
         </div>
       </section>
@@ -694,6 +733,7 @@ function App() {
             renderedPageCount={renderedPageCount}
             viewerWidth={viewerWidth}
             vocabulary={vocabulary}
+            unmarkedWords={unmarkedWords}
             setPageCount={setPageCount}
             setRenderedPageCount={setRenderedPageCount}
             setPageAspectRatio={setPageAspectRatio}
@@ -708,7 +748,7 @@ function App() {
           className={`word-card ${activeCard.mode}`}
           style={{ left: activeCard.left, top: activeCard.top }}
           role={activeCard.mode === 'full' ? 'dialog' : 'status'}
-          aria-label={`${activeCard.result.sourceWord} word help`}
+          aria-label={`${activeCard.sourceWord} word help`}
         >
           {activeCard.mode === 'full' && (
             <button
@@ -720,36 +760,74 @@ function App() {
             </button>
           )}
           <p className="card-label">
-            {activeCard.mode === 'full' ? 'Full word card' : 'Quick view'}
+            {activeCard.mode === 'full' ? 'Word help' : 'Quick view'}
           </p>
           <div className="word-pair">
-            <strong>{activeCard.result.sourceWord}</strong>
-            <span>{activeCard.result.displayWord}</span>
+            <strong>{activeCard.sourceWord}</strong>
+            {activeCard.result && <span>{activeCard.result.mandarin}</span>}
           </div>
-          <p className="pinyin">
-            {activeCard.result.action === 'use_synonym'
-              ? `Simpler English · ${activeCard.result.mandarin} · ${activeCard.result.pinyin}`
-              : activeCard.result.pinyin}
-          </p>
+          {activeCard.result && (
+            <p className="pinyin">{activeCard.result.pinyin}</p>
+          )}
           {activeCard.mode === 'full' && (
             <>
-              <p className="word-meaning">{activeCard.result.shortMeaning}</p>
-              <div className="card-actions">
-                <button
-                  className={`primary-button ${activeList === 'learning' ? 'selected' : ''}`}
-                  disabled={activeList === 'learning'}
-                  onClick={() => void moveActiveWord('learning')}
-                >
-                  {activeList === 'learning' ? 'In Learning' : 'Add to Learning'}
-                </button>
-                <button
-                  className={`text-button ${activeList === 'known' ? 'selected' : ''}`}
-                  disabled={activeList === 'known'}
-                  onClick={() => void moveActiveWord('known')}
-                >
-                  {activeList === 'known' ? 'In Known Words' : 'Mark as Known'}
-                </button>
-              </div>
+              {activeCard.result ? (
+                <>
+                  <dl className="word-details">
+                    <div>
+                      <dt>Level</dt>
+                      <dd>{activeCard.result.cefr}</dd>
+                    </div>
+                    <div>
+                      <dt>Simpler English</dt>
+                      <dd>{activeCard.result.simplerEnglish}</dd>
+                    </div>
+                    <div>
+                      <dt>Meaning</dt>
+                      <dd>{activeCard.result.definition}</dd>
+                    </div>
+                    <div>
+                      <dt>Example</dt>
+                      <dd>
+                        {activeCard.contextSentence ||
+                          activeCard.result.contextualExample}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Usage</dt>
+                      <dd>{activeCard.result.usageNote}</dd>
+                    </div>
+                  </dl>
+                  <div className="card-actions">
+                    <button
+                      className={`primary-button ${activeWordIsSaved ? 'selected' : ''}`}
+                      disabled={activeWordIsSaved}
+                      onClick={() => void saveActiveWord()}
+                    >
+                      {activeWordIsSaved ? 'Saved' : 'Save'}
+                    </button>
+                    <button
+                      className="text-button"
+                      onClick={toggleActiveMarker}
+                    >
+                      {activeCard.isCandidate ? 'Unmark' : 'Show marker'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="word-pending">
+                  <strong>Word help is not connected yet.</strong>
+                  <p>
+                    This word is selectable. LinguaRead will create its card
+                    after the language service is added.
+                  </p>
+                  {activeCard.contextSentence && (
+                    <p>
+                      <span>In this PDF:</span> {activeCard.contextSentence}
+                    </p>
+                  )}
+                </div>
+              )}
             </>
           )}
           {activeCard.mode === 'preview' && (

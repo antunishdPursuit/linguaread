@@ -1,39 +1,38 @@
-import type {
-  VocabularyEntry,
-  VocabularyList,
-  VocabularyState,
-} from './types';
+import type { VocabularyEntry, VocabularyState } from './types';
 
-export const VOCABULARY_STORAGE_KEY = 'linguaread-vocabulary-v1';
+export const VOCABULARY_STORAGE_KEY = 'linguaread-dictionary-v2';
+const LEGACY_VOCABULARY_STORAGE_KEY = 'linguaread-vocabulary-v1';
 
 export const EMPTY_VOCABULARY_STATE: VocabularyState = {
-  learning: [],
-  known: [],
+  entries: [],
 };
 
-export function moveVocabularyEntry(
+export function saveVocabularyEntry(
   state: VocabularyState,
   entry: VocabularyEntry,
-  destination: VocabularyList,
 ): VocabularyState {
-  const withoutEntry = {
-    learning: state.learning.filter((item) => item.id !== entry.id),
-    known: state.known.filter((item) => item.id !== entry.id),
-  };
-
   return {
-    ...withoutEntry,
-    [destination]: [entry, ...withoutEntry[destination]],
+    entries: [
+      entry,
+      ...state.entries.filter((candidate) => candidate.id !== entry.id),
+    ],
   };
 }
 
-export function vocabularyListFor(
+export function removeVocabularyEntry(
   state: VocabularyState,
   entryId: string,
-): VocabularyList | null {
-  if (state.learning.some((entry) => entry.id === entryId)) return 'learning';
-  if (state.known.some((entry) => entry.id === entryId)) return 'known';
-  return null;
+): VocabularyState {
+  return {
+    entries: state.entries.filter((entry) => entry.id !== entryId),
+  };
+}
+
+export function dictionaryHasEntry(
+  state: VocabularyState,
+  entryId: string,
+): boolean {
+  return state.entries.some((entry) => entry.id === entryId);
 }
 
 function isVocabularyEntry(value: unknown): value is VocabularyEntry {
@@ -51,16 +50,53 @@ function isVocabularyEntry(value: unknown): value is VocabularyEntry {
   );
 }
 
-function normalizeState(value: unknown): VocabularyState {
-  if (!value || typeof value !== 'object') return EMPTY_VOCABULARY_STATE;
-  const candidate = value as Partial<VocabularyState>;
+function withExpandedFields(entry: VocabularyEntry): VocabularyEntry {
   return {
-    learning: Array.isArray(candidate.learning)
-      ? candidate.learning.filter(isVocabularyEntry)
-      : [],
-    known: Array.isArray(candidate.known)
-      ? candidate.known.filter(isVocabularyEntry)
-      : [],
+    ...entry,
+    contextualExample: entry.contextualExample || '',
+    definition: entry.definition || entry.shortMeaning,
+    lemma: entry.lemma || entry.sourceWord.toLowerCase(),
+    simplerEnglish: entry.simplerEnglish || entry.displayWord,
+    usageNote: entry.usageNote || '',
+  };
+}
+
+function uniqueEntries(entries: VocabularyEntry[]): VocabularyEntry[] {
+  const seen = new Set<string>();
+  return entries.filter((entry) => {
+    if (seen.has(entry.id)) return false;
+    seen.add(entry.id);
+    return true;
+  });
+}
+
+export function normalizeVocabularyState(value: unknown): VocabularyState {
+  if (!value || typeof value !== 'object') return EMPTY_VOCABULARY_STATE;
+  const candidate = value as {
+    entries?: unknown[];
+    known?: unknown[];
+    learning?: unknown[];
+  };
+
+  if (Array.isArray(candidate.entries)) {
+    return {
+      entries: uniqueEntries(
+        candidate.entries
+          .filter(isVocabularyEntry)
+          .map(withExpandedFields),
+      ),
+    };
+  }
+
+  // Migrate the earlier mutually exclusive lists into one Dictionary.
+  const legacyEntries = [
+    ...(Array.isArray(candidate.learning) ? candidate.learning : []),
+    ...(Array.isArray(candidate.known) ? candidate.known : []),
+  ];
+  return {
+    entries: uniqueEntries(
+      legacyEntries.filter(isVocabularyEntry).map(withExpandedFields),
+    ),
   };
 }
 
@@ -70,17 +106,25 @@ function hasChromeStorage(): boolean {
 
 export async function readVocabularyState(): Promise<VocabularyState> {
   if (!hasChromeStorage()) {
-    const saved = globalThis.localStorage?.getItem(VOCABULARY_STORAGE_KEY);
+    const saved =
+      globalThis.localStorage?.getItem(VOCABULARY_STORAGE_KEY) ??
+      globalThis.localStorage?.getItem(LEGACY_VOCABULARY_STORAGE_KEY);
     if (!saved) return EMPTY_VOCABULARY_STATE;
     try {
-      return normalizeState(JSON.parse(saved));
+      return normalizeVocabularyState(JSON.parse(saved));
     } catch {
       return EMPTY_VOCABULARY_STATE;
     }
   }
 
-  const result = await chrome.storage.local.get(VOCABULARY_STORAGE_KEY);
-  return normalizeState(result[VOCABULARY_STORAGE_KEY]);
+  const result = await chrome.storage.local.get([
+    VOCABULARY_STORAGE_KEY,
+    LEGACY_VOCABULARY_STORAGE_KEY,
+  ]);
+  return normalizeVocabularyState(
+    result[VOCABULARY_STORAGE_KEY] ??
+      result[LEGACY_VOCABULARY_STORAGE_KEY],
+  );
 }
 
 export async function writeVocabularyState(
@@ -104,7 +148,7 @@ export function subscribeToVocabularyState(
     const handleStorage = (event: StorageEvent) => {
       if (event.key !== VOCABULARY_STORAGE_KEY || !event.newValue) return;
       try {
-        listener(normalizeState(JSON.parse(event.newValue)));
+        listener(normalizeVocabularyState(JSON.parse(event.newValue)));
       } catch {
         listener(EMPTY_VOCABULARY_STATE);
       }
@@ -120,7 +164,7 @@ export function subscribeToVocabularyState(
     if (areaName !== 'local') return;
     const change = changes[VOCABULARY_STORAGE_KEY];
     if (!change) return;
-    listener(normalizeState(change.newValue));
+    listener(normalizeVocabularyState(change.newValue));
   };
 
   chrome.storage.onChanged.addListener(handleChange);

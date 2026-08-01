@@ -325,12 +325,8 @@ button:focus-visible,
   color: var(--teal);
 }
 
-.legend-item.known {
+.legend-item.saved {
   color: var(--green);
-}
-
-.legend-item.learning {
-  color: var(--gold);
 }
 
 .error-message {
@@ -478,6 +474,10 @@ button:focus-visible,
 
   position: relative;
   color: transparent !important;
+  cursor: text;
+}
+
+.linguaread-word.is-candidate {
   text-decoration: underline;
   text-decoration-color: var(--word-marker);
   text-decoration-thickness: 1.25px;
@@ -485,7 +485,7 @@ button:focus-visible,
   cursor: help;
 }
 
-.linguaread-word::before {
+.linguaread-word.is-candidate::before {
   position: absolute;
   top: -0.28em;
   left: 50%;
@@ -509,11 +509,7 @@ button:focus-visible,
   --word-marker: #c95b3e;
 }
 
-.linguaread-word.is-learning {
-  --word-marker: #bd8b15;
-}
-
-.linguaread-word.is-known {
+.linguaread-word.is-saved {
   --word-marker: #57916e;
 }
 
@@ -564,10 +560,50 @@ button:focus-visible,
   margin-bottom: 0;
 }
 
-.word-meaning {
+.word-details {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.word-details div {
+  display: grid;
+  gap: 3px;
+}
+
+.word-details dt {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.word-details dd {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.word-pending {
+  margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
   line-height: 1.5;
+}
+
+.word-pending p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.word-pending span {
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .card-close {

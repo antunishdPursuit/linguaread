@@ -85,18 +85,22 @@ function App() {
     try {
       let transferId: string | undefined;
       if (activePdf.url.startsWith('file:')) {
-        // Opening the action popup is the user gesture that grants activeTab.
-        // Capture the PDF now because the reader tab does not inherit that access.
-        const response = await fetch(activePdf.url);
-        if (!response.ok) {
-          throw new Error(
-            `Temporary PDF access failed with status ${response.status}.`,
+        try {
+          // A direct toolbar click grants activeTab; an automatic prompt does not.
+          // Always continue to the reader so its file-picker recovery remains usable.
+          const response = await fetch(activePdf.url);
+          if (!response.ok) {
+            throw new Error(
+              `Temporary PDF access failed with status ${response.status}.`,
+            );
+          }
+          transferId = await storePdfTransfer(
+            await response.blob(),
+            pdfNameFromUrl(activePdf.url),
           );
+        } catch {
+          transferId = undefined;
         }
-        transferId = await storePdfTransfer(
-          await response.blob(),
-          pdfNameFromUrl(activePdf.url),
-        );
       }
 
       const response = (await browser.runtime.sendMessage({
