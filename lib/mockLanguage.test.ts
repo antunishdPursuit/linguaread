@@ -5,11 +5,9 @@ import {
 } from './mockLanguage';
 import {
   createPendingVocabularyEntry,
-  dictionaryHasEntry,
   dictionaryHasWord,
   EMPTY_VOCABULARY_STATE,
   normalizeVocabularyState,
-  removeVocabularyEntry,
   saveVocabularyEntry,
 } from './vocabularyStorage';
 
@@ -20,25 +18,13 @@ describe('Dictionary state', () => {
     expect(EMPTY_VOCABULARY_STATE).toEqual({ entries: [] });
   });
 
-  it('saves each entry once and removes it deliberately', () => {
+  it('saves each entry once', () => {
     const saved = saveVocabularyEntry(
       saveVocabularyEntry(EMPTY_VOCABULARY_STATE, innovation),
       innovation,
     );
     expect(saved.entries).toHaveLength(1);
-    expect(dictionaryHasEntry(saved, innovation.id)).toBe(true);
-
-    const removed = removeVocabularyEntry(saved, innovation.id);
-    expect(dictionaryHasEntry(removed, innovation.id)).toBe(false);
-  });
-
-  it('migrates legacy Learning and Known entries into one Dictionary', () => {
-    const migrated = normalizeVocabularyState({
-      learning: [innovation],
-      known: [innovation],
-    });
-
-    expect(migrated.entries).toHaveLength(1);
+    expect(dictionaryHasWord(saved, innovation.sourceWord)).toBe(true);
   });
 
   it('saves an unknown selected word without inventing language details', () => {

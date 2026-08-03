@@ -156,7 +156,6 @@ export default defineBackground(() => {
             sendResponse({
               error: 'The current tab is not a supported PDF.',
               ok: false,
-              permissionRequired: false,
             });
             return;
           }
@@ -178,7 +177,6 @@ export default defineBackground(() => {
 
           sendResponse({
             ok: true,
-            permissionRequired: false,
           });
         } catch (error) {
           sendResponse({
@@ -187,7 +185,6 @@ export default defineBackground(() => {
                 ? error.message
                 : 'Chrome could not open the LinguaRead reader.',
             ok: false,
-            permissionRequired: false,
           });
         }
       })();

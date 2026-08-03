@@ -65,36 +65,6 @@ button {
 
 button:disabled { cursor: wait; opacity: .7; }
 
-.permission-note {
-  margin-top: 14px;
-  padding: 12px;
-  border: 1px solid #d8d0c2;
-  border-radius: 6px;
-  color: #625a4e;
-  background: #fffaf0;
-  text-align: left;
-}
-
-.permission-note p,
-.permission-note ol {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.permission-note ol {
-  margin-top: 8px;
-  padding-left: 20px;
-}
-
-.permission-note li + li { margin-top: 4px; }
-
-.permission-note code {
-  padding: 1px 3px;
-  border-radius: 3px;
-  background: #eee6d9;
-}
-
 .empty-state { padding-bottom: 12px; }
 
 .error { margin: 14px 0 0; padding: 10px; border: 1px solid #c97c6b; border-radius: 6px; color: #7c2f21; background: #fbe7e1; font-size: 11px; line-height: 1.4; }

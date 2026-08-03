@@ -1,7 +1,6 @@
 import type { VocabularyEntry, VocabularyState } from './types';
 
-export const VOCABULARY_STORAGE_KEY = 'linguaread-dictionary-v2';
-const LEGACY_VOCABULARY_STORAGE_KEY = 'linguaread-vocabulary-v1';
+export const VOCABULARY_STORAGE_KEY = 'linguaread-dictionary-v3';
 
 export const EMPTY_VOCABULARY_STATE: VocabularyState = {
   entries: [],
@@ -47,22 +46,6 @@ export function saveVocabularyEntry(
       ),
     ],
   };
-}
-
-export function removeVocabularyEntry(
-  state: VocabularyState,
-  entryId: string,
-): VocabularyState {
-  return {
-    entries: state.entries.filter((entry) => entry.id !== entryId),
-  };
-}
-
-export function dictionaryHasEntry(
-  state: VocabularyState,
-  entryId: string,
-): boolean {
-  return state.entries.some((entry) => entry.id === entryId);
 }
 
 export function dictionaryHasWord(
@@ -112,30 +95,13 @@ function uniqueEntries(entries: VocabularyEntry[]): VocabularyEntry[] {
 
 export function normalizeVocabularyState(value: unknown): VocabularyState {
   if (!value || typeof value !== 'object') return EMPTY_VOCABULARY_STATE;
-  const candidate = value as {
-    entries?: unknown[];
-    known?: unknown[];
-    learning?: unknown[];
-  };
+  const candidate = value as { entries?: unknown[] };
 
-  if (Array.isArray(candidate.entries)) {
-    return {
-      entries: uniqueEntries(
-        candidate.entries
-          .filter(isVocabularyEntry)
-          .map(withExpandedFields),
-      ),
-    };
-  }
+  if (!Array.isArray(candidate.entries)) return EMPTY_VOCABULARY_STATE;
 
-  // Migrate the earlier mutually exclusive lists into one Dictionary.
-  const legacyEntries = [
-    ...(Array.isArray(candidate.learning) ? candidate.learning : []),
-    ...(Array.isArray(candidate.known) ? candidate.known : []),
-  ];
   return {
     entries: uniqueEntries(
-      legacyEntries.filter(isVocabularyEntry).map(withExpandedFields),
+      candidate.entries.filter(isVocabularyEntry).map(withExpandedFields),
     ),
   };
 }
@@ -146,9 +112,7 @@ function hasChromeStorage(): boolean {
 
 export async function readVocabularyState(): Promise<VocabularyState> {
   if (!hasChromeStorage()) {
-    const saved =
-      globalThis.localStorage?.getItem(VOCABULARY_STORAGE_KEY) ??
-      globalThis.localStorage?.getItem(LEGACY_VOCABULARY_STORAGE_KEY);
+    const saved = globalThis.localStorage?.getItem(VOCABULARY_STORAGE_KEY);
     if (!saved) return EMPTY_VOCABULARY_STATE;
     try {
       return normalizeVocabularyState(JSON.parse(saved));
@@ -157,14 +121,8 @@ export async function readVocabularyState(): Promise<VocabularyState> {
     }
   }
 
-  const result = await chrome.storage.local.get([
-    VOCABULARY_STORAGE_KEY,
-    LEGACY_VOCABULARY_STORAGE_KEY,
-  ]);
-  return normalizeVocabularyState(
-    result[VOCABULARY_STORAGE_KEY] ??
-      result[LEGACY_VOCABULARY_STORAGE_KEY],
-  );
+  const result = await chrome.storage.local.get(VOCABULARY_STORAGE_KEY);
+  return normalizeVocabularyState(result[VOCABULARY_STORAGE_KEY]);
 }
 
 export async function writeVocabularyState(

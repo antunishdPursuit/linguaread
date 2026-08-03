@@ -17,7 +17,6 @@ export type OpenReaderMessage = {
 export type OpenReaderResponse = {
   error?: string;
   ok: boolean;
-  permissionRequired: boolean;
 };
 
 export function isPdfUrl(url?: string): url is string {
