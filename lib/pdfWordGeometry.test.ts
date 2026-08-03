@@ -28,7 +28,7 @@ describe('PDF word geometry tokenization', () => {
     ]);
   });
 
-  it('converts browser rectangles to page-relative marker geometry', () => {
+  it('converts browser rectangles to page-relative word geometry', () => {
     expect(
       toPageRelativeRectangle(
         { height: 18, left: 245, top: 330, width: 92 },

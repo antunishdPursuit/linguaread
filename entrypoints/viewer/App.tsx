@@ -41,19 +41,12 @@ import { consumePdfTransfer } from '../../lib/pdfTransfer';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
-type CardMode = 'preview' | 'full';
-
 type ActiveCard = {
-  isCandidate: boolean;
-  mode: CardMode;
-  occurrenceId: string;
   result: LanguageResult | null;
   sourceWord: string;
   left: number;
   top: number;
 };
-
-type FitMode = 'page' | 'width' | 'custom';
 
 const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
 
@@ -82,95 +75,17 @@ function FilePickerButton({
   );
 }
 
-function WordMarkerLayer({
-  targets,
-  unmarkedOccurrences,
-  vocabulary,
-}: {
-  targets: PdfWordTarget[];
-  unmarkedOccurrences: ReadonlySet<string>;
-  vocabulary: VocabularyState;
-}) {
-  return (
-    <div className="word-marker-layer">
-      {targets.flatMap((target) => {
-        const result = languageFixtureForWord(target.word);
-        const isCandidate =
-          Boolean(result) && !unmarkedOccurrences.has(target.id);
-        const isSaved = dictionaryHasWord(vocabulary, target.word);
-        if (!isCandidate && !isSaved) return [];
-
-        return target.rectangles.map((rectangle, rectangleIndex) => {
-          const markerClassName = [
-            'word-marker',
-            isCandidate ? 'is-candidate' : '',
-            isCandidate && result?.action === 'use_mandarin'
-              ? 'is-mandarin'
-              : '',
-            isCandidate && result?.action === 'use_synonym'
-              ? 'is-synonym'
-              : '',
-            isSaved ? 'is-saved' : '',
-          ]
-            .filter(Boolean)
-            .join(' ');
-          const style = {
-            height: rectangle.height,
-            left: rectangle.left,
-            top: rectangle.top,
-            width: rectangle.width,
-          };
-
-          if (rectangleIndex === 0 && isCandidate) {
-            return (
-              <button
-                aria-label={`${target.word} word help`}
-                className={markerClassName}
-                data-linguaread-candidate="true"
-                data-linguaread-occurrence={target.id}
-                data-linguaread-word={target.word}
-                key={`${target.id}-${rectangleIndex}`}
-                style={style}
-                type="button"
-              />
-            );
-          }
-
-          return (
-            <span
-              aria-hidden="true"
-              className={markerClassName}
-              key={`${target.id}-${rectangleIndex}`}
-              style={style}
-            />
-          );
-        });
-      })}
-    </div>
-  );
-}
-
 const PdfReaderPage = memo(function PdfReaderPage({
   pageNumber,
-  setPageAspectRatio,
-  setPageWordCount,
   setPageWordTargets,
-  targets,
-  unmarkedOccurrences,
   viewerWidth,
-  vocabulary,
 }: {
   pageNumber: number;
-  setPageAspectRatio: Dispatch<SetStateAction<number>>;
-  setPageWordCount: (pageNumber: number, wordCount: number) => void;
   setPageWordTargets: (
     pageNumber: number,
     targets: PdfWordTarget[],
   ) => void;
-  targets: PdfWordTarget[];
-  unmarkedOccurrences: ReadonlySet<string>;
   viewerWidth: number;
-  vocabulary: VocabularyState;
 }) {
   const frameRef = useRef<number | null>(null);
   const pageShellRef = useRef<HTMLElement | null>(null);
@@ -187,8 +102,8 @@ const PdfReaderPage = memo(function PdfReaderPage({
   const handleTextLayerSuccess = useCallback(() => {
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
 
-    // PDF.js finishes its own text transforms before LinguaRead measures
-    // ranges. The markers stay separate and cannot alter the source layout.
+    // PDF.js must finish its text transforms before LinguaRead measures the
+    // native words used for double-click targeting.
     frameRef.current = requestAnimationFrame(() => {
       const pageElement = pageShellRef.current;
       if (!pageElement) return;
@@ -209,29 +124,7 @@ const PdfReaderPage = memo(function PdfReaderPage({
       <Page
         pageNumber={pageNumber}
         width={viewerWidth}
-        onLoadSuccess={(page) => {
-          if (pageNumber === 1) {
-            setPageAspectRatio(page.originalHeight / page.originalWidth);
-          }
-        }}
-        onGetTextSuccess={({ items }) => {
-          const text = items
-            .filter(
-              (item): item is typeof item & { str: string } => 'str' in item,
-            )
-            .map((item) => item.str)
-            .join(' ');
-          setPageWordCount(
-            pageNumber,
-            text.trim() ? text.trim().split(/\s+/).length : 0,
-          );
-        }}
         onRenderTextLayerSuccess={handleTextLayerSuccess}
-      />
-      <WordMarkerLayer
-        targets={targets}
-        vocabulary={vocabulary}
-        unmarkedOccurrences={unmarkedOccurrences}
       />
       <span className="page-number" aria-hidden="true">
         {pageNumber}
@@ -245,13 +138,8 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
   pageCount,
   renderedPageCount,
   viewerWidth,
-  vocabulary,
-  unmarkedOccurrences,
-  wordTargets,
   setPageCount,
   setRenderedPageCount,
-  setPageAspectRatio,
-  setPageWordCount,
   setPageWordTargets,
   setPdfError,
 }: {
@@ -259,13 +147,8 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
   pageCount: number;
   renderedPageCount: number;
   viewerWidth: number;
-  vocabulary: VocabularyState;
-  unmarkedOccurrences: ReadonlySet<string>;
-  wordTargets: Record<number, PdfWordTarget[]>;
   setPageCount: Dispatch<SetStateAction<number>>;
   setRenderedPageCount: Dispatch<SetStateAction<number>>;
-  setPageAspectRatio: Dispatch<SetStateAction<number>>;
-  setPageWordCount: (pageNumber: number, wordCount: number) => void;
   setPageWordTargets: (
     pageNumber: number,
     targets: PdfWordTarget[],
@@ -295,13 +178,8 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
             <PdfReaderPage
               key={pageNumber}
               pageNumber={pageNumber}
-              setPageAspectRatio={setPageAspectRatio}
-              setPageWordCount={setPageWordCount}
               setPageWordTargets={setPageWordTargets}
-              targets={wordTargets[pageNumber] ?? []}
-              unmarkedOccurrences={unmarkedOccurrences}
               viewerWidth={viewerWidth}
-              vocabulary={vocabulary}
             />
           );
         })}
@@ -318,10 +196,7 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
 function App() {
   const viewerRef = useRef<HTMLDivElement>(null);
   const activeCardRef = useRef<ActiveCard | null>(null);
-  const pageWordCountsRef = useRef<Record<number, number>>({});
-  const previewOccurrenceRef = useRef<string | null>(null);
   const wordTargetIndexesRef = useRef<Record<number, PdfWordSpatialIndex>>({});
-  const wordTargetsRef = useRef<Record<number, PdfWordTarget[]>>({});
   const isPdfHandoff = isPdfHandoffSearch(window.location.search);
   const [file, setFile] = useState<File | string | null>(null);
   const [fileName, setFileName] = useState('Choose a PDF to begin');
@@ -330,21 +205,11 @@ function App() {
   const [renderedPageCount, setRenderedPageCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [requestedPage, setRequestedPage] = useState<number | null>(null);
-  const [extractedWords, setExtractedWords] = useState(0);
   const [baseViewerWidth, setBaseViewerWidth] = useState(760);
-  const [stageHeight, setStageHeight] = useState(720);
-  const [pageAspectRatio, setPageAspectRatio] = useState(1.294);
   const [zoom, setZoom] = useState(1);
-  const [fitMode, setFitMode] = useState<FitMode>('width');
   const [activeCard, setActiveCard] = useState<ActiveCard | null>(null);
-  const [wordTargets, setWordTargets] = useState<
-    Record<number, PdfWordTarget[]>
-  >({});
   const [vocabulary, setVocabulary] = useState<VocabularyState>(
     EMPTY_VOCABULARY_STATE,
-  );
-  const [unmarkedOccurrences, setUnmarkedOccurrences] = useState<Set<string>>(
-    new Set(),
   );
   const [statusMessage, setStatusMessage] = useState('');
   const [error, setError] = useState('');
@@ -358,19 +223,13 @@ function App() {
       setBaseViewerWidth(
         Math.max(280, Math.min(760, entry.contentRect.width - 48)),
       );
-      setStageHeight(entry.contentRect.height);
     });
 
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
 
-  const fitPageZoom = Math.min(
-    1,
-    Math.max(0.5, (stageHeight - 72) / (baseViewerWidth * pageAspectRatio)),
-  );
-  const effectiveZoom = fitMode === 'page' ? fitPageZoom : zoom;
-  const viewerWidth = Math.round(baseViewerWidth * effectiveZoom);
+  const viewerWidth = Math.round(baseViewerWidth * zoom);
 
   useEffect(() => {
     void readVocabularyState()
@@ -381,23 +240,16 @@ function App() {
 
   const handleFile = useCallback((nextFile?: File) => {
     activeCardRef.current = null;
-    previewOccurrenceRef.current = null;
     setActiveCard(null);
     setError('');
     setPdfError('');
     setLocalFileNeedsSelection(false);
-    setExtractedWords(0);
     setPageCount(0);
     setRenderedPageCount(0);
     setCurrentPage(1);
     setRequestedPage(null);
     setZoom(1);
-    setFitMode('width');
-    setUnmarkedOccurrences(new Set());
-    setWordTargets({});
-    wordTargetsRef.current = {};
     wordTargetIndexesRef.current = {};
-    pageWordCountsRef.current = {};
 
     if (!nextFile) {
       setFile(null);
@@ -453,31 +305,12 @@ function App() {
       });
   }, [handleFile]);
 
-  const setPageWordCount = useCallback(
-    (pageNumber: number, wordCount: number) => {
-      pageWordCountsRef.current[pageNumber] = wordCount;
-      setExtractedWords(
-        Object.values(pageWordCountsRef.current).reduce(
-          (total, count) => total + count,
-          0,
-        ),
-      );
-    },
-    [],
-  );
-
   const setPageWordTargets = useCallback(
     (pageNumber: number, targets: PdfWordTarget[]) => {
-      const nextTargets = {
-        ...wordTargetsRef.current,
-        [pageNumber]: targets,
-      };
-      wordTargetsRef.current = nextTargets;
       wordTargetIndexesRef.current = {
         ...wordTargetIndexesRef.current,
         [pageNumber]: buildPdfWordSpatialIndex(targets),
       };
-      setWordTargets(nextTargets);
     },
     [],
   );
@@ -562,7 +395,6 @@ function App() {
   );
 
   const changeZoom = useCallback((direction: -1 | 1) => {
-    setFitMode('custom');
     setZoom((current) =>
       Math.max(0.6, Math.min(1.8, Number((current + direction * 0.1).toFixed(1)))),
     );
@@ -583,13 +415,9 @@ function App() {
     }
   }, []);
 
-  const showCard = useCallback((
-    target: PdfWordTarget,
-    rect: DOMRect,
-    mode: CardMode,
-  ) => {
+  const showCard = useCallback((target: PdfWordTarget, rect: DOMRect) => {
     const result = languageFixtureForWord(target.word);
-    const cardWidth = mode === 'full' ? 340 : 280;
+    const cardWidth = 340;
     const preferredLeft = rect.right + 12;
     const left = Math.max(
       16,
@@ -603,10 +431,6 @@ function App() {
     const top = Math.max(16, Math.min(rect.top - 12, window.innerHeight - 260));
 
     const nextCard: ActiveCard = {
-      isCandidate:
-        Boolean(result) && !unmarkedOccurrences.has(target.id),
-      mode,
-      occurrenceId: target.id,
       result,
       sourceWord: target.word,
       left,
@@ -614,7 +438,7 @@ function App() {
     };
     activeCardRef.current = nextCard;
     setActiveCard(nextCard);
-  }, [unmarkedOccurrences]);
+  }, []);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -663,134 +487,39 @@ function App() {
       };
     };
 
-    const findWordByOccurrence = (element: HTMLElement) => {
-      const pageElement = element.closest<HTMLElement>('[data-page-number]');
-      const occurrenceId = element.dataset.linguareadOccurrence;
-      if (!pageElement || !occurrenceId) return null;
-      const pageNumber = Number(pageElement.dataset.pageNumber);
-      const target = (wordTargetsRef.current[pageNumber] ?? []).find(
-        (candidate) => candidate.id === occurrenceId,
-      );
-      return target
-        ? {
-            rectangle: element.getBoundingClientRect(),
-            target,
-          }
-        : null;
-    };
-
-    const handleMouseMove = (event: MouseEvent) => {
-      // A deliberate double-click owns the card until the user closes it or
-      // deliberately selects another word.
-      if (activeCardRef.current?.mode === 'full') return;
-
-      const word = findWordAtPoint(event);
-      if (!word) {
-        previewOccurrenceRef.current = null;
-        activeCardRef.current = null;
-        setActiveCard((current) =>
-          current?.mode === 'preview' ? null : current,
-        );
-        return;
-      }
-      if (previewOccurrenceRef.current === word.target.id) return;
-      previewOccurrenceRef.current = word.target.id;
-      showCard(word.target, word.rectangle, 'preview');
-    };
-    const handleMouseLeave = () => {
-      previewOccurrenceRef.current = null;
-      if (activeCardRef.current?.mode === 'preview') {
-        activeCardRef.current = null;
-      }
-      setActiveCard((current) =>
-        current?.mode === 'preview' ? null : current,
-      );
-    };
     const handleDoubleClick = (event: MouseEvent) => {
       const word = findWordAtPoint(event);
       if (!word) return;
       event.preventDefault();
       window.getSelection()?.removeAllRanges();
-      previewOccurrenceRef.current = null;
-      showCard(word.target, word.rectangle, 'full');
+      showCard(word.target, word.rectangle);
     };
     const handleMouseDown = (event: MouseEvent) => {
-      if (event.detail !== 1 || findWordAtPoint(event)) return;
-      if (activeCardRef.current?.mode === 'full') {
+      const word = findWordAtPoint(event);
+
+      // Chrome starts word and paragraph selection before `dblclick` fires.
+      // Cancel only repeated presses on a measured word so ordinary drag
+      // selection elsewhere in the PDF remains available.
+      if (event.detail >= 2 && word) {
+        event.preventDefault();
+        window.getSelection()?.removeAllRanges();
+        return;
+      }
+
+      if (event.detail === 1 && !word && activeCardRef.current) {
         activeCardRef.current = null;
         setActiveCard(null);
       }
     };
-    const handleFocusIn = (event: FocusEvent) => {
-      const element =
-        event.target instanceof HTMLElement
-          ? event.target.closest<HTMLElement>('[data-linguaread-occurrence]')
-          : null;
-      const word = element ? findWordByOccurrence(element) : null;
-      if (word && activeCardRef.current?.mode !== 'full') {
-        showCard(word.target, word.rectangle, 'preview');
-      }
-    };
-    const handleFocusOut = (event: FocusEvent) => {
-      if (
-        !(event.target instanceof HTMLElement) ||
-        !event.target.closest('[data-linguaread-occurrence]')
-      ) {
-        return;
-      }
-      if (activeCardRef.current?.mode === 'preview') {
-        activeCardRef.current = null;
-      }
-      setActiveCard((current) =>
-        current?.mode === 'preview' ? null : current,
-      );
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      const element =
-        event.target instanceof HTMLElement
-          ? event.target.closest<HTMLElement>('[data-linguaread-occurrence]')
-          : null;
-      const word = element ? findWordByOccurrence(element) : null;
-      if (!word) return;
-      event.preventDefault();
-      showCard(word.target, word.rectangle, 'full');
-    };
 
-    viewer.addEventListener('mousemove', handleMouseMove);
-    viewer.addEventListener('mouseleave', handleMouseLeave);
     viewer.addEventListener('mousedown', handleMouseDown);
     viewer.addEventListener('dblclick', handleDoubleClick);
-    viewer.addEventListener('focusin', handleFocusIn);
-    viewer.addEventListener('focusout', handleFocusOut);
-    viewer.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      viewer.removeEventListener('mousemove', handleMouseMove);
-      viewer.removeEventListener('mouseleave', handleMouseLeave);
       viewer.removeEventListener('mousedown', handleMouseDown);
       viewer.removeEventListener('dblclick', handleDoubleClick);
-      viewer.removeEventListener('focusin', handleFocusIn);
-      viewer.removeEventListener('focusout', handleFocusOut);
-      viewer.removeEventListener('keydown', handleKeyDown);
     };
   }, [showCard]);
-
-  const visibleWordTargets = Object.values(wordTargets).flat();
-  const mandarinCount = visibleWordTargets.filter((target) => {
-    const result = languageFixtureForWord(target.word);
-    return (
-      result?.action === 'use_mandarin' &&
-      !unmarkedOccurrences.has(target.id)
-    );
-  }).length;
-  const synonymCount = visibleWordTargets.filter((target) => {
-    const result = languageFixtureForWord(target.word);
-    return (
-      result?.action === 'use_synonym' &&
-      !unmarkedOccurrences.has(target.id)
-    );
-  }).length;
 
   const saveActiveWord = async () => {
     if (!activeCard) return;
@@ -810,21 +539,6 @@ function App() {
     }
   };
 
-  const toggleActiveMarker = () => {
-    if (!activeCard?.result || !activeCard.isCandidate) return;
-    setUnmarkedOccurrences((current) => {
-      const next = new Set(current);
-      next.add(activeCard.occurrenceId);
-      return next;
-    });
-    const nextCard = { ...activeCard, isCandidate: false };
-    activeCardRef.current = nextCard;
-    setActiveCard(nextCard);
-    setStatusMessage(
-      `${activeCard.sourceWord} marker hidden for this PDF.`,
-    );
-  };
-
   const activeWordIsSaved = Boolean(
     activeCard && dictionaryHasWord(vocabulary, activeCard.sourceWord),
   );
@@ -832,16 +546,15 @@ function App() {
   return (
     <main className="app-shell">
       <header className="browser-bar">
-        <div className="window-dots" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-
-        <div className="document-path" title={fileName}>
-          <span>LinguaRead</span>
-          <span aria-hidden="true">›</span>
-          <strong>{fileName}</strong>
+        <div className="document-summary">
+          <div className="document-path" title={fileName}>
+            <span>LinguaRead</span>
+            <span aria-hidden="true">›</span>
+            <strong>{fileName}</strong>
+            <span aria-hidden="true">›</span>
+            <span>{vocabulary.entries.length} saved</span>
+          </div>
+          <p>Double-click a word to see more information.</p>
         </div>
 
         <div className="reader-tools">
@@ -882,11 +595,8 @@ function App() {
       {!isPdfHandoff && (
         <section className="document-header" aria-label="PDF controls">
           <div>
-            <p className="eyebrow">PDF-first reading aid</p>
             <h1>LinguaRead</h1>
-            <p>
-              Read the original layout. Double-click any word for help.
-            </p>
+            <p>Double-click a word to see more information.</p>
           </div>
 
           <FilePickerButton
@@ -895,26 +605,6 @@ function App() {
           />
         </section>
       )}
-
-      <section className="reader-status" aria-live="polite">
-        <div className="status-copy">
-          <strong>{fileName}</strong>
-          {pageCount > 0 && <span>{pageCount} pages</span>}
-          {extractedWords > 0 && <span>{extractedWords} words detected</span>}
-        </div>
-
-        <div className="legend" aria-label="Word display legend">
-          <span className="legend-item mandarin">
-            <i /> {mandarinCount} Mandarin hints
-          </span>
-          <span className="legend-item synonym">
-            <i /> {synonymCount} simpler English hints
-          </span>
-          <span className="legend-item saved">
-            <i /> {vocabulary.entries.length} saved
-          </span>
-        </div>
-      </section>
 
       {file && (
         <section className="reader-control-bar" aria-label="Reader controls">
@@ -948,30 +638,13 @@ function App() {
             >
               −
             </button>
-            <span>{Math.round(effectiveZoom * 100)}%</span>
+            <span>{Math.round(zoom * 100)}%</span>
             <button
               type="button"
               aria-label="Zoom in"
               onClick={() => changeZoom(1)}
             >
               +
-            </button>
-            <button
-              type="button"
-              className={fitMode === 'width' ? 'active' : ''}
-              onClick={() => {
-                setZoom(1);
-                setFitMode('width');
-              }}
-            >
-              Fit width
-            </button>
-            <button
-              type="button"
-              className={fitMode === 'page' ? 'active' : ''}
-              onClick={() => setFitMode('page')}
-            >
-              Fit page
             </button>
           </div>
         </section>
@@ -1010,19 +683,7 @@ function App() {
         </div>
       )}
 
-      <section
-        className="reader-stage"
-        ref={viewerRef}
-        onScroll={() => {
-          previewOccurrenceRef.current = null;
-          if (activeCardRef.current?.mode === 'preview') {
-            activeCardRef.current = null;
-          }
-          setActiveCard((current) =>
-            current?.mode === 'preview' ? null : current,
-          );
-        }}
-      >
+      <section className="reader-stage" ref={viewerRef}>
         {!file ? (
           <div className="empty-reader">
             <div className="empty-document" aria-hidden="true">
@@ -1030,8 +691,8 @@ function App() {
             </div>
             <h2>Choose a text-based PDF</h2>
             <p>
-              LinguaRead will display the PDF and mark only the words prepared
-              for help.
+              LinguaRead will display the PDF. Double-click a word to see more
+              information.
             </p>
           </div>
         ) : (
@@ -1040,13 +701,8 @@ function App() {
             pageCount={pageCount}
             renderedPageCount={renderedPageCount}
             viewerWidth={viewerWidth}
-            vocabulary={vocabulary}
-            unmarkedOccurrences={unmarkedOccurrences}
-            wordTargets={wordTargets}
             setPageCount={setPageCount}
             setRenderedPageCount={setRenderedPageCount}
-            setPageAspectRatio={setPageAspectRatio}
-            setPageWordCount={setPageWordCount}
             setPageWordTargets={setPageWordTargets}
             setPdfError={setPdfError}
           />
@@ -1055,26 +711,22 @@ function App() {
 
       {activeCard && (
         <aside
-          className={`word-card ${activeCard.mode}`}
+          className="word-card"
           style={{ left: activeCard.left, top: activeCard.top }}
-          role={activeCard.mode === 'full' ? 'dialog' : 'status'}
+          role="dialog"
           aria-label={`${activeCard.sourceWord} word help`}
         >
-          {activeCard.mode === 'full' && (
-            <button
-              className="card-close"
-              aria-label="Close word card"
-              onClick={() => {
-                activeCardRef.current = null;
-                setActiveCard(null);
-              }}
-            >
-              ×
-            </button>
-          )}
-          <p className="card-label">
-            {activeCard.mode === 'full' ? 'Word help' : 'Quick view'}
-          </p>
+          <button
+            className="card-close"
+            aria-label="Close word card"
+            onClick={() => {
+              activeCardRef.current = null;
+              setActiveCard(null);
+            }}
+          >
+            ×
+          </button>
+          <p className="card-label">Word help</p>
           <div className="word-pair">
             <strong>{activeCard.sourceWord}</strong>
             {activeCard.result && <span>{activeCard.result.mandarin}</span>}
@@ -1082,68 +734,49 @@ function App() {
           {activeCard.result && (
             <p className="pinyin">{activeCard.result.pinyin}</p>
           )}
-          {activeCard.mode === 'full' && (
-            <>
-              {activeCard.result ? (
-                <>
-                  <dl className="word-details">
-                    <div>
-                      <dt>Level</dt>
-                      <dd>{activeCard.result.cefr}</dd>
-                    </div>
-                    <div>
-                      <dt>Simpler English</dt>
-                      <dd>{activeCard.result.simplerEnglish}</dd>
-                    </div>
-                    <div>
-                      <dt>Meaning</dt>
-                      <dd>{activeCard.result.definition}</dd>
-                    </div>
-                    <div>
-                      <dt>Example</dt>
-                      <dd>{activeCard.result.contextualExample}</dd>
-                    </div>
-                    <div>
-                      <dt>Usage</dt>
-                      <dd>{activeCard.result.usageNote}</dd>
-                    </div>
-                  </dl>
-                </>
-              ) : (
-                <div className="word-pending">
-                  <strong>Word help is not connected yet.</strong>
-                  <p>
-                    This word is selectable. LinguaRead will create its card
-                    after the language service is added.
-                  </p>
-                </div>
-              )}
-              <div className="card-actions">
-                <button
-                  className={`primary-button ${activeWordIsSaved ? 'selected' : ''}`}
-                  disabled={activeWordIsSaved}
-                  onClick={() => void saveActiveWord()}
-                >
-                  {activeWordIsSaved
-                    ? 'Saved to Dictionary'
-                    : 'Save to Dictionary'}
-                </button>
-                {activeCard.isCandidate && (
-                  <button
-                    className="text-button"
-                    onClick={toggleActiveMarker}
-                  >
-                    Unmark
-                  </button>
-                )}
+          {activeCard.result ? (
+            <dl className="word-details">
+              <div>
+                <dt>Level</dt>
+                <dd>{activeCard.result.cefr}</dd>
               </div>
-            </>
+              <div>
+                <dt>Simpler English</dt>
+                <dd>{activeCard.result.simplerEnglish}</dd>
+              </div>
+              <div>
+                <dt>Meaning</dt>
+                <dd>{activeCard.result.definition}</dd>
+              </div>
+              <div>
+                <dt>Example</dt>
+                <dd>{activeCard.result.contextualExample}</dd>
+              </div>
+              <div>
+                <dt>Usage</dt>
+                <dd>{activeCard.result.usageNote}</dd>
+              </div>
+            </dl>
+          ) : (
+            <div className="word-pending">
+              <strong>Word help is not connected yet.</strong>
+              <p>
+                This word is selectable. LinguaRead will create its card after
+                the language service is added.
+              </p>
+            </div>
           )}
-          {activeCard.mode === 'preview' && (
-            <p className="preview-hint">
-              Double-click or press Enter for details
-            </p>
-          )}
+          <div className="card-actions">
+            <button
+              className={`primary-button ${activeWordIsSaved ? 'selected' : ''}`}
+              disabled={activeWordIsSaved}
+              onClick={() => void saveActiveWord()}
+            >
+              {activeWordIsSaved
+                ? 'Saved to Dictionary'
+                : 'Save to Dictionary'}
+            </button>
+          </div>
         </aside>
       )}
     </main>

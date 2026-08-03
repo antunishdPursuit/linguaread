@@ -8,21 +8,17 @@ International students may understand most of an English academic PDF but still 
 
 ## The LinguaRead approach
 
-LinguaRead keeps the original English PDF visible and adds focused help only where it may be useful. It marks selected words without rewriting or covering the document.
-
-- A teal marker means simpler English help is available.
-- An orange marker means Mandarin help is available.
-- A gold marker means the reader is learning the word.
-- A green marker means the reader marked the word as known.
+LinguaRead keeps the original English PDF visible and adds focused help only
+when the reader requests it. It does not rewrite, cover, or automatically mark
+the document.
 
 ## How it works
 
 1. The reader opens a text-based English PDF in LinguaRead.
-2. LinguaRead identifies words that may need support.
-3. The reader hovers over a marked word for a quick explanation.
-4. The reader double-clicks the word for Mandarin, pinyin, a short English meaning, and learning actions.
-5. The reader adds the word to **Learning** or marks it as **Known**.
-6. Both lists remain available in Chrome's side panel for later reading.
+2. The reader double-clicks any word that needs support.
+3. LinguaRead opens the complete word card without changing the PDF text.
+4. The reader saves useful words to one searchable **Dictionary**.
+5. The Dictionary remains available in Chrome's side panel for later reading.
 
 The original English stays in the PDF. LinguaRead provides help around the text instead of replacing the reader's complete English experience.
 
@@ -31,10 +27,9 @@ The original English stays in the PDF. LinguaRead provides help around the text 
 LinguaRead is being prepared for release through the Chrome Web Store. Once it is available:
 
 1. Install LinguaRead from its Chrome Web Store page.
-2. Open the extension and choose a text-based PDF.
-3. Hover over a marked word for quick help.
-4. Double-click the word for the complete word card.
-5. Open **Word lists** to review Learning and Known Words.
+2. Open a text-based PDF and select **Open with LinguaRead**.
+3. Double-click a word for the complete word card.
+4. Open the **Dictionary** to review saved words.
 
 The Chrome Web Store link will be added after the extension is approved.
 

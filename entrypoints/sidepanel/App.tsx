@@ -84,10 +84,7 @@ function App() {
       <header className="panel-header">
         <div className="brand">
           <span aria-hidden="true">▣</span>
-          <div>
-            <p>PDF reading aid</p>
-            <h1>LinguaRead</h1>
-          </div>
+          <h1>LinguaRead</h1>
         </div>
         <span className="level-badge">B2</span>
       </header>
