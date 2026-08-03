@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPdfWordSpatialIndex,
   findPdfWordTargetAtPoint,
+  positionFloatingCard,
   tokenizeEnglishWords,
   toPageRelativeRectangle,
 } from './pdfWordGeometry';
@@ -35,6 +36,16 @@ describe('PDF word geometry tokenization', () => {
         { height: 900, left: 200, top: 250, width: 700 },
       ),
     ).toEqual({ height: 18, left: 45, top: 80, width: 92 });
+  });
+
+  it('keeps a floating card inside a viewport that becomes narrower', () => {
+    expect(
+      positionFloatingCard(
+        { height: 20, left: 620, top: 300, width: 50 },
+        { height: 260, width: 340 },
+        { height: 800, width: 700 },
+      ),
+    ).toEqual({ left: 268, top: 288 });
   });
 
   it('finds the smallest word in the nearby spatial row', () => {

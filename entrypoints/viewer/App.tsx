@@ -19,6 +19,7 @@ import {
   buildPdfWordSpatialIndex,
   findPdfWordTargetAtPoint,
   measureTextLayerWords,
+  positionFloatingCard,
   type PdfWordSpatialIndex,
   type PdfWordTarget,
 } from '../../lib/pdfWordGeometry';
@@ -44,6 +45,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 type ActiveCard = {
   result: LanguageResult | null;
   sourceWord: string;
+  target: PdfWordTarget;
   left: number;
   top: number;
 };
@@ -61,6 +63,37 @@ function selectPdfWord(target: PdfWordTarget): void {
   range.setEnd(target.selection.node, target.selection.end);
   selection.removeAllRanges();
   selection.addRange(range);
+}
+
+function getPdfWordViewportRectangle(
+  target: PdfWordTarget,
+): DOMRect | null {
+  const measuredSelection = target.selection;
+  if (!measuredSelection?.node.isConnected) return null;
+
+  // The selected word's viewport position changes when Chrome opens its side
+  // panel or the PDF reader scrolls, so read the saved text range again.
+  const range = document.createRange();
+  range.setStart(measuredSelection.node, measuredSelection.start);
+  range.setEnd(measuredSelection.node, measuredSelection.end);
+  const rectangle = range.getBoundingClientRect();
+  range.detach();
+
+  return rectangle.width > 0 && rectangle.height > 0 ? rectangle : null;
+}
+
+function positionWordCard(rectangle: DOMRect): {
+  left: number;
+  top: number;
+} {
+  return positionFloatingCard(
+    rectangle,
+    {
+      height: 260,
+      width: Math.min(340, Math.max(0, window.innerWidth - 32)),
+    },
+    { height: window.innerHeight, width: window.innerWidth },
+  );
 }
 
 function FilePickerButton({
@@ -437,27 +470,57 @@ function App() {
 
   const showCard = useCallback((target: PdfWordTarget, rect: DOMRect) => {
     const result = languageFixtureForWord(target.word);
-    const cardWidth = 340;
-    const preferredLeft = rect.right + 12;
-    const left = Math.max(
-      16,
-      Math.min(
-        preferredLeft + cardWidth <= window.innerWidth - 16
-          ? preferredLeft
-          : rect.left - cardWidth - 12,
-        window.innerWidth - cardWidth - 16,
-      ),
-    );
-    const top = Math.max(16, Math.min(rect.top - 12, window.innerHeight - 260));
+    const { left, top } = positionWordCard(rect);
 
     const nextCard: ActiveCard = {
       result,
       sourceWord: target.word,
+      target,
       left,
       top,
     };
     activeCardRef.current = nextCard;
     setActiveCard(nextCard);
+  }, []);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    let frame: number | null = null;
+
+    const repositionCard = () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        const currentCard = activeCardRef.current;
+        if (!currentCard) return;
+
+        const rectangle = getPdfWordViewportRectangle(currentCard.target);
+        if (!rectangle) return;
+        const nextPosition = positionWordCard(rectangle);
+        if (
+          nextPosition.left === currentCard.left &&
+          nextPosition.top === currentCard.top
+        ) {
+          return;
+        }
+
+        const nextCard = { ...currentCard, ...nextPosition };
+        activeCardRef.current = nextCard;
+        setActiveCard(nextCard);
+      });
+    };
+
+    viewer.addEventListener('scroll', repositionCard, { passive: true });
+    window.addEventListener('resize', repositionCard);
+    window.visualViewport?.addEventListener('resize', repositionCard);
+
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      viewer.removeEventListener('scroll', repositionCard);
+      window.removeEventListener('resize', repositionCard);
+      window.visualViewport?.removeEventListener('resize', repositionCard);
+    };
   }, []);
 
   useEffect(() => {

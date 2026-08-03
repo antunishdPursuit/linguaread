@@ -18,6 +18,11 @@ type RectangleLike = {
   width: number;
 };
 
+type SizeLike = {
+  height: number;
+  width: number;
+};
+
 export type PdfWordTarget = {
   id: string;
   rectangles: WordHitRectangle[];
@@ -58,6 +63,28 @@ export function toPageRelativeRectangle(
     left: rectangle.left - pageRectangle.left,
     top: rectangle.top - pageRectangle.top,
     width: rectangle.width,
+  };
+}
+
+export function positionFloatingCard(
+  anchor: RectangleLike,
+  card: SizeLike,
+  viewport: SizeLike,
+  gap = 12,
+  padding = 16,
+): { left: number; top: number } {
+  const rightOfAnchor = anchor.left + anchor.width + gap;
+  const leftOfAnchor = anchor.left - card.width - gap;
+  const preferredLeft =
+    rightOfAnchor + card.width <= viewport.width - padding
+      ? rightOfAnchor
+      : leftOfAnchor;
+  const maximumLeft = Math.max(padding, viewport.width - card.width - padding);
+  const maximumTop = Math.max(padding, viewport.height - card.height - padding);
+
+  return {
+    left: Math.max(padding, Math.min(preferredLeft, maximumLeft)),
+    top: Math.max(padding, Math.min(anchor.top - gap, maximumTop)),
   };
 }
 
