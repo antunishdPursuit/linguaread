@@ -9,10 +9,13 @@ import {
   type OpenReaderMessage,
   type OpenReaderResponse,
 } from '../lib/pdfLaunch';
+import {
+  popupContextForUrl,
+  toolbarTitleForContext,
+} from '../lib/popupContext';
 
 type PromptedPdfTabs = Record<string, string>;
 
-const DEFAULT_ACTION_TITLE = 'LinguaRead — open a PDF to begin';
 const AUTO_PROMPT_DURATION_MS = 4_000;
 const READER_PATH = '/viewer.html';
 const SIDE_PANEL_PATH = '/sidepanel.html';
@@ -46,17 +49,17 @@ async function clearPromptedTab(tabId: number): Promise<void> {
   });
 }
 
-function isReaderUrl(url?: string): boolean {
-  return Boolean(url?.startsWith(browser.runtime.getURL(READER_PATH)));
-}
-
 async function configureTab(tab: Browser.tabs.Tab, showPrompt: boolean) {
   if (tab.id === undefined) return;
 
   const tabId = tab.id;
   const url = tab.url;
   const isPdf = isPdfUrl(url);
-  const isReader = isReaderUrl(url);
+  const popupContext = popupContextForUrl(
+    url,
+    browser.runtime.getURL(READER_PATH),
+  );
+  const isReader = popupContext === 'reader';
 
   await chrome.sidePanel.setOptions({
     enabled: isReader,
@@ -67,7 +70,12 @@ async function configureTab(tab: Browser.tabs.Tab, showPrompt: boolean) {
   if (!isPdf) {
     await Promise.all([
       chrome.action.setBadgeText({ tabId, text: '' }),
-      chrome.action.setTitle({ tabId, title: DEFAULT_ACTION_TITLE }),
+      chrome.action.setTitle({
+        tabId,
+        title: toolbarTitleForContext(
+          popupContext === 'reader' ? 'reader' : 'page',
+        ),
+      }),
     ]);
     return;
   }

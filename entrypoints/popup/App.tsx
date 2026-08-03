@@ -2,22 +2,27 @@ import { useEffect, useRef, useState } from 'react';
 import {
   AUTO_PROMPT_STORAGE_KEY,
   OPEN_READER_MESSAGE,
-  isPdfUrl,
   pdfNameFromUrl,
   type AutoPromptContext,
   type OpenReaderResponse,
 } from '../../lib/pdfLaunch';
 import { storePdfTransfer } from '../../lib/pdfTransfer';
+import {
+  popupContextForUrl,
+  type PopupContextKind,
+} from '../../lib/popupContext';
 
-type ActivePdf = {
+type ActiveTabContext = {
+  kind: PopupContextKind;
   tabId: number;
-  title: string;
+  title?: string;
   url: string;
 };
 
 function App() {
   const autoCloseTimer = useRef<number | null>(null);
-  const [activePdf, setActivePdf] = useState<ActivePdf | null>(null);
+  const [activeContext, setActiveContext] =
+    useState<ActiveTabContext | null>(null);
   const [error, setError] = useState('');
   const [isOpening, setIsOpening] = useState(false);
 
@@ -39,21 +44,28 @@ function App() {
       browser.storage.session.get(AUTO_PROMPT_STORAGE_KEY),
     ])
       .then(async ([[tab], stored]) => {
-        if (!tab?.id || !isPdfUrl(tab.url)) {
-          return;
-        }
+        if (tab?.id === undefined) return;
 
-        const nextPdf = {
+        const kind = popupContextForUrl(
+          tab.url,
+          browser.runtime.getURL('/viewer.html'),
+        );
+        const nextContext = {
+          kind,
           tabId: tab.id,
-          title: tab.title || pdfNameFromUrl(tab.url),
-          url: tab.url,
+          title:
+            kind === 'pdf' && tab.url
+              ? tab.title || pdfNameFromUrl(tab.url)
+              : undefined,
+          url: tab.url || '',
         };
-        setActivePdf(nextPdf);
+        setActiveContext(nextContext);
 
         const autoPrompt = stored[
           AUTO_PROMPT_STORAGE_KEY
         ] as AutoPromptContext | null | undefined;
         const openedAutomatically =
+          kind === 'pdf' &&
           autoPrompt?.tabId === tab.id &&
           autoPrompt.url === tab.url &&
           autoPrompt.expiresAt > Date.now();
@@ -77,18 +89,18 @@ function App() {
   }, []);
 
   const openReader = async () => {
-    if (!activePdf || isOpening) return;
+    if (activeContext?.kind !== 'pdf' || isOpening) return;
 
     stopAutoClose();
     setError('');
     setIsOpening(true);
     try {
       let transferId: string | undefined;
-      if (activePdf.url.startsWith('file:')) {
+      if (activeContext.url.startsWith('file:')) {
         try {
           // A direct toolbar click grants activeTab; an automatic prompt does not.
           // Always continue to the reader so its file-picker recovery remains usable.
-          const response = await fetch(activePdf.url);
+          const response = await fetch(activeContext.url);
           if (!response.ok) {
             throw new Error(
               `Temporary PDF access failed with status ${response.status}.`,
@@ -96,7 +108,7 @@ function App() {
           }
           transferId = await storePdfTransfer(
             await response.blob(),
-            pdfNameFromUrl(activePdf.url),
+            pdfNameFromUrl(activeContext.url),
           );
         } catch {
           transferId = undefined;
@@ -105,7 +117,7 @@ function App() {
 
       const response = (await browser.runtime.sendMessage({
         type: OPEN_READER_MESSAGE,
-        sourceUrl: activePdf.url,
+        sourceUrl: activeContext.url,
         transferId,
       })) as OpenReaderResponse;
       if (!response?.ok) {
@@ -122,6 +134,41 @@ function App() {
     }
   };
 
+  const openStandaloneReader = async () => {
+    if (isOpening) return;
+
+    setError('');
+    setIsOpening(true);
+    try {
+      await browser.tabs.create({
+        url: browser.runtime.getURL('/viewer.html'),
+      });
+      window.close();
+    } catch {
+      setIsOpening(false);
+      setError('LinguaRead could not open the reader. Try again.');
+    }
+  };
+
+  const openDictionary = async () => {
+    if (activeContext?.kind !== 'reader' || isOpening) return;
+
+    setError('');
+    setIsOpening(true);
+    try {
+      await chrome.sidePanel.setOptions({
+        enabled: true,
+        path: '/sidepanel.html',
+        tabId: activeContext.tabId,
+      });
+      await chrome.sidePanel.open({ tabId: activeContext.tabId });
+      window.close();
+    } catch {
+      setIsOpening(false);
+      setError('LinguaRead could not open the Dictionary. Try again.');
+    }
+  };
+
   return (
     <main className="popup-shell">
       <header>
@@ -131,16 +178,9 @@ function App() {
         <h1>LinguaRead</h1>
       </header>
 
-      {activePdf ? (
-        <section aria-labelledby="open-title">
-          <h2 id="open-title">
-            Open this PDF with LinguaRead?
-          </h2>
-          <p className="file-name">{activePdf.title}</p>
-
-          <p className="note">
-            The original PDF stays unchanged.
-          </p>
+      {activeContext?.kind === 'pdf' && (
+        <section aria-label="Open the current PDF">
+          <p className="file-name">{activeContext.title}</p>
           <button
             type="button"
             onClick={() => void openReader()}
@@ -149,10 +189,30 @@ function App() {
             {isOpening ? 'Opening…' : 'Open with LinguaRead'}
           </button>
         </section>
-      ) : (
-        <section className="empty-state">
-          <h2>Open a PDF first</h2>
-          <p>Then click LinguaRead to open that PDF in the reading view.</p>
+      )}
+
+      {activeContext?.kind === 'page' && (
+        <section aria-label="Open LinguaRead">
+          <button
+            type="button"
+            onClick={() => void openStandaloneReader()}
+            disabled={isOpening}
+          >
+            {isOpening ? 'Opening…' : 'Open LinguaRead'}
+          </button>
+        </section>
+      )}
+
+      {activeContext?.kind === 'reader' && (
+        <section aria-labelledby="reader-title">
+          <h2 id="reader-title">You’re already using LinguaRead.</h2>
+          <button
+            type="button"
+            onClick={() => void openDictionary()}
+            disabled={isOpening}
+          >
+            {isOpening ? 'Opening…' : 'Open Dictionary'}
+          </button>
         </section>
       )}
 

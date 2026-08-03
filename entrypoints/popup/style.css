@@ -48,8 +48,6 @@ h2 { margin-bottom: 7px; font-size: 19px; line-height: 1.15; }
 
 .file-name { margin-bottom: 9px; overflow-wrap: anywhere; font-size: 13px; font-weight: 700; }
 
-.note, .empty-state p { margin-bottom: 9px; color: var(--color-text-muted); font-size: 13px; line-height: 1.45; }
-
 button {
   width: 100%;
   min-height: 42px;
@@ -69,7 +67,5 @@ button:hover:not(:disabled) {
 }
 
 button:disabled { cursor: wait; opacity: .7; }
-
-.empty-state { padding-bottom: 12px; }
 
 .error { margin: 14px 0 0; padding: 10px; border: 1px solid var(--color-error); border-radius: var(--radius-control); color: var(--color-error); background: var(--color-error-surface); font-size: 13px; line-height: 1.4; }
