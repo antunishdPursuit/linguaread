@@ -273,7 +273,7 @@ function App() {
 
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [file]);
 
   const viewerWidth = Math.round(baseViewerWidth * zoom);
 
@@ -625,7 +625,7 @@ function App() {
   );
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${file ? 'has-document' : ''}`}>
       <header className="browser-bar">
         <div className="document-summary">
           <div className="document-path" title={fileName}>
@@ -686,54 +686,6 @@ function App() {
         </section>
       )}
 
-      {file && (
-        <section className="reader-control-bar" aria-label="Reader controls">
-          <div className="page-controls">
-            <button
-              type="button"
-              aria-label="Previous page"
-              disabled={currentPage <= 1}
-              onClick={() => scrollToPage(currentPage - 1)}
-            >
-              ←
-            </button>
-            <span>
-              Page <strong>{currentPage}</strong> of {pageCount || '—'}
-            </span>
-            <button
-              type="button"
-              aria-label="Next page"
-              disabled={currentPage >= pageCount}
-              onClick={() => scrollToPage(currentPage + 1)}
-            >
-              →
-            </button>
-          </div>
-
-          <p className="reader-instruction">
-            Double-click a word to see more information.
-          </p>
-
-          <div className="zoom-controls">
-            <button
-              type="button"
-              aria-label="Zoom out"
-              onClick={() => changeZoom(-1)}
-            >
-              −
-            </button>
-            <span>{Math.round(zoom * 100)}%</span>
-            <button
-              type="button"
-              aria-label="Zoom in"
-              onClick={() => changeZoom(1)}
-            >
-              +
-            </button>
-          </div>
-        </section>
-      )}
-
       <p className="sr-only" aria-live="polite">
         {statusMessage}
       </p>
@@ -767,31 +719,83 @@ function App() {
         </div>
       )}
 
-      <section className="reader-stage" ref={viewerRef}>
-        {!file ? (
-          <div className="empty-reader">
-            <div className="empty-document" aria-hidden="true">
-              <span>PDF</span>
+      <div
+        className={`reader-workspace ${file ? 'has-document' : 'is-empty'}`}
+      >
+        {file && (
+          <section className="reader-control-bar" aria-label="Reader controls">
+            <div className="page-controls">
+              <button
+                type="button"
+                aria-label="Previous page"
+                disabled={currentPage <= 1}
+                onClick={() => scrollToPage(currentPage - 1)}
+              >
+                ←
+              </button>
+              <span>
+                Page <strong>{currentPage}</strong> of {pageCount || '—'}
+              </span>
+              <button
+                type="button"
+                aria-label="Next page"
+                disabled={currentPage >= pageCount}
+                onClick={() => scrollToPage(currentPage + 1)}
+              >
+                →
+              </button>
             </div>
-            <h2>Choose a text-based PDF</h2>
-            <p>
-              LinguaRead will display the PDF. Double-click a word to see more
-              information.
+
+            <p className="reader-instruction">
+              Double-click a word to see more information.
             </p>
-          </div>
-        ) : (
-          <PdfReaderDocument
-            file={file}
-            pageCount={pageCount}
-            renderedPageCount={renderedPageCount}
-            viewerWidth={viewerWidth}
-            setPageCount={setPageCount}
-            setRenderedPageCount={setRenderedPageCount}
-            setPageWordTargets={setPageWordTargets}
-            setPdfError={setPdfError}
-          />
+
+            <div className="zoom-controls">
+              <button
+                type="button"
+                aria-label="Zoom out"
+                onClick={() => changeZoom(-1)}
+              >
+                −
+              </button>
+              <span>{Math.round(zoom * 100)}%</span>
+              <button
+                type="button"
+                aria-label="Zoom in"
+                onClick={() => changeZoom(1)}
+              >
+                +
+              </button>
+            </div>
+          </section>
         )}
-      </section>
+
+        <section className="reader-stage" ref={viewerRef}>
+          {!file ? (
+            <div className="empty-reader">
+              <div className="empty-document" aria-hidden="true">
+                <span>PDF</span>
+              </div>
+              <h2>Choose a text-based PDF</h2>
+              <p>
+                LinguaRead will display the PDF. Double-click a word to see more
+                information.
+              </p>
+            </div>
+          ) : (
+            <PdfReaderDocument
+              file={file}
+              pageCount={pageCount}
+              renderedPageCount={renderedPageCount}
+              viewerWidth={viewerWidth}
+              setPageCount={setPageCount}
+              setRenderedPageCount={setRenderedPageCount}
+              setPageWordTargets={setPageWordTargets}
+              setPdfError={setPdfError}
+            />
+          )}
+        </section>
+      </div>
 
       {activeCard && (
         <aside
