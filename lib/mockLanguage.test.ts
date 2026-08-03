@@ -4,7 +4,7 @@ import {
   toVocabularyEntry,
 } from './mockLanguage';
 import {
-  createPendingVocabularyEntry,
+  createWordOnlyVocabularyEntry,
   dictionaryHasWord,
   EMPTY_VOCABULARY_STATE,
   normalizeVocabularyState,
@@ -28,23 +28,25 @@ describe('Dictionary state', () => {
   });
 
   it('saves an unknown selected word without inventing language details', () => {
-    const pending = createPendingVocabularyEntry('championship');
-    const saved = saveVocabularyEntry(EMPTY_VOCABULARY_STATE, pending);
+    const wordOnly = createWordOnlyVocabularyEntry('championship');
+    const saved = saveVocabularyEntry(EMPTY_VOCABULARY_STATE, wordOnly);
+    const restored = normalizeVocabularyState(saved);
 
     expect(dictionaryHasWord(saved, 'Championship')).toBe(true);
-    expect(saved.entries[0]).toMatchObject({
+    expect(restored.entries[0]).toMatchObject({
       cefr: 'unknown',
       definition: '',
       mandarin: '',
+      simplerEnglish: '',
       sourceWord: 'championship',
     });
   });
 
-  it('replaces a pending word when its complete entry becomes available', () => {
-    const pending = createPendingVocabularyEntry('innovation');
+  it('replaces a word-only entry when its complete entry becomes available', () => {
+    const wordOnly = createWordOnlyVocabularyEntry('innovation');
     const ready = toVocabularyEntry(MOCK_LANGUAGE_RESULTS[0]);
     const saved = saveVocabularyEntry(
-      saveVocabularyEntry(EMPTY_VOCABULARY_STATE, pending),
+      saveVocabularyEntry(EMPTY_VOCABULARY_STATE, wordOnly),
       ready,
     );
 

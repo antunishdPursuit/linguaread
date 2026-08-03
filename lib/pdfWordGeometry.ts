@@ -21,6 +21,11 @@ type RectangleLike = {
 export type PdfWordTarget = {
   id: string;
   rectangles: WordHitRectangle[];
+  selection?: {
+    end: number;
+    node: Text;
+    start: number;
+  };
   word: string;
 };
 
@@ -158,6 +163,11 @@ export function measureTextLayerWords(
       targets.push({
         id: `${pageNumber}-${textNodeIndex}-${token.start}`,
         rectangles,
+        selection: {
+          end: token.end,
+          node: textNode,
+          start: token.start,
+        },
         word: token.word,
       });
     }

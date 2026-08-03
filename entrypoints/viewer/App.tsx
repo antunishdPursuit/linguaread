@@ -24,7 +24,7 @@ import {
 } from '../../lib/pdfWordGeometry';
 import type { LanguageResult, VocabularyState } from '../../lib/types';
 import {
-  createPendingVocabularyEntry,
+  createWordOnlyVocabularyEntry,
   dictionaryHasWord,
   EMPTY_VOCABULARY_STATE,
   readVocabularyState,
@@ -49,6 +49,19 @@ type ActiveCard = {
 };
 
 const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
+
+function selectPdfWord(target: PdfWordTarget): void {
+  const selection = window.getSelection();
+  if (!selection || !target.selection) return;
+
+  // Chrome's native double-click selection can expand after repeated clicks.
+  // Recreate the measured word range so the blue selection stays exact.
+  const range = document.createRange();
+  range.setStart(target.selection.node, target.selection.start);
+  range.setEnd(target.selection.node, target.selection.end);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
 
 function FilePickerButton({
   className = 'file-button',
@@ -241,6 +254,7 @@ function App() {
   const handleFile = useCallback((nextFile?: File) => {
     activeCardRef.current = null;
     setActiveCard(null);
+    window.getSelection()?.removeAllRanges();
     setError('');
     setPdfError('');
     setLocalFileNeedsSelection(false);
@@ -415,6 +429,12 @@ function App() {
     }
   }, []);
 
+  const closeActiveCard = useCallback(() => {
+    activeCardRef.current = null;
+    setActiveCard(null);
+    window.getSelection()?.removeAllRanges();
+  }, []);
+
   const showCard = useCallback((target: PdfWordTarget, rect: DOMRect) => {
     const result = languageFixtureForWord(target.word);
     const cardWidth = 340;
@@ -491,24 +511,23 @@ function App() {
       const word = findWordAtPoint(event);
       if (!word) return;
       event.preventDefault();
-      window.getSelection()?.removeAllRanges();
+      selectPdfWord(word.target);
       showCard(word.target, word.rectangle);
     };
     const handleMouseDown = (event: MouseEvent) => {
       const word = findWordAtPoint(event);
 
       // Chrome starts word and paragraph selection before `dblclick` fires.
-      // Cancel only repeated presses on a measured word so ordinary drag
-      // selection elsewhere in the PDF remains available.
+      // Cancel only repeated presses on a measured word. The `dblclick`
+      // handler restores one exact native range, while ordinary drag
+      // selection remains available.
       if (event.detail >= 2 && word) {
         event.preventDefault();
-        window.getSelection()?.removeAllRanges();
         return;
       }
 
-      if (event.detail === 1 && !word && activeCardRef.current) {
-        activeCardRef.current = null;
-        setActiveCard(null);
+      if (event.detail === 1 && activeCardRef.current) {
+        closeActiveCard();
       }
     };
 
@@ -519,24 +538,23 @@ function App() {
       viewer.removeEventListener('mousedown', handleMouseDown);
       viewer.removeEventListener('dblclick', handleDoubleClick);
     };
-  }, [showCard]);
+  }, [closeActiveCard, showCard]);
 
-  const saveActiveWord = async () => {
+  const saveActiveWord = () => {
     if (!activeCard) return;
     const entry = activeCard.result
       ? toVocabularyEntry(activeCard.result)
-      : createPendingVocabularyEntry(activeCard.sourceWord);
+      : createWordOnlyVocabularyEntry(activeCard.sourceWord);
     const nextState = saveVocabularyEntry(vocabulary, entry);
     setVocabulary(nextState);
     setStatusMessage(`${entry.sourceWord} saved to your Dictionary.`);
+    void openSidePanel();
 
-    try {
-      await writeVocabularyState(nextState);
-    } catch {
+    void writeVocabularyState(nextState).catch(() => {
       setVocabulary(vocabulary);
       setStatusMessage('');
       setError('LinguaRead could not save that word. Try again.');
-    }
+    });
   };
 
   const activeWordIsSaved = Boolean(
@@ -554,7 +572,6 @@ function App() {
             <span aria-hidden="true">›</span>
             <span>{vocabulary.entries.length} saved</span>
           </div>
-          <p>Double-click a word to see more information.</p>
         </div>
 
         <div className="reader-tools">
@@ -629,6 +646,10 @@ function App() {
               →
             </button>
           </div>
+
+          <p className="reader-instruction">
+            Double-click a word to see more information.
+          </p>
 
           <div className="zoom-controls">
             <button
@@ -719,10 +740,7 @@ function App() {
           <button
             className="card-close"
             aria-label="Close word card"
-            onClick={() => {
-              activeCardRef.current = null;
-              setActiveCard(null);
-            }}
+            onClick={closeActiveCard}
           >
             ×
           </button>
@@ -758,7 +776,7 @@ function App() {
               </div>
             </dl>
           ) : (
-            <div className="word-pending">
+            <div className="word-unavailable">
               <strong>Word help is not connected yet.</strong>
               <p>
                 This word is selectable. LinguaRead will create its card after
@@ -770,7 +788,7 @@ function App() {
             <button
               className={`primary-button ${activeWordIsSaved ? 'selected' : ''}`}
               disabled={activeWordIsSaved}
-              onClick={() => void saveActiveWord()}
+              onClick={saveActiveWord}
             >
               {activeWordIsSaved
                 ? 'Saved to Dictionary'

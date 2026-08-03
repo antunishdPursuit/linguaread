@@ -10,7 +10,7 @@ function normalizedSourceWord(sourceWord: string): string {
   return sourceWord.trim().toLowerCase();
 }
 
-export function createPendingVocabularyEntry(
+export function createWordOnlyVocabularyEntry(
   sourceWord: string,
 ): VocabularyEntry {
   const normalizedWord = normalizedSourceWord(sourceWord);
@@ -20,7 +20,7 @@ export function createPendingVocabularyEntry(
     contextualExample: '',
     definition: '',
     displayWord: sourceWord,
-    id: `pending-${normalizedWord}`,
+    id: `word-${normalizedWord}`,
     lemma: normalizedWord,
     mandarin: '',
     pinyin: '',
@@ -74,12 +74,14 @@ function isVocabularyEntry(value: unknown): value is VocabularyEntry {
 }
 
 function withExpandedFields(entry: VocabularyEntry): VocabularyEntry {
+  const hasLanguageDetails = entry.cefr !== 'unknown';
   return {
     ...entry,
     contextualExample: entry.contextualExample || '',
     definition: entry.definition || entry.shortMeaning,
     lemma: entry.lemma || entry.sourceWord.toLowerCase(),
-    simplerEnglish: entry.simplerEnglish || entry.displayWord,
+    simplerEnglish:
+      entry.simplerEnglish || (hasLanguageDetails ? entry.displayWord : ''),
     usageNote: entry.usageNote || '',
   };
 }

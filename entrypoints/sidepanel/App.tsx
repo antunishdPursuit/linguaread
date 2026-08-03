@@ -28,15 +28,15 @@ function DictionaryEntries({ entries }: { entries: VocabularyEntry[] }) {
               )}
               <strong>{entry.sourceWord}</strong>
             </div>
-            <span className="cefr">
-              {entry.cefr === 'unknown' ? 'Pending' : entry.cefr}
-            </span>
+            {entry.cefr !== 'unknown' && (
+              <span className="cefr">{entry.cefr}</span>
+            )}
           </div>
           {entry.pinyin && <p className="pinyin">{entry.pinyin}</p>}
           <p className="meaning">
             {entry.definition ||
               entry.shortMeaning ||
-              'Language details will be added when the service is connected.'}
+              'Word details are not available yet.'}
           </p>
           {entry.simplerEnglish && (
             <p className="simpler">
