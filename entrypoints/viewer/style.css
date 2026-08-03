@@ -35,6 +35,15 @@ button:focus-visible,
   padding-bottom: 48px;
 }
 
+.app-shell.is-empty {
+  display: flex;
+  height: 100dvh;
+  min-height: 600px;
+  flex-direction: column;
+  padding-bottom: 18px;
+  overflow: hidden;
+}
+
 .app-shell.has-document {
   display: flex;
   height: 100dvh;
@@ -160,6 +169,11 @@ button:focus-visible,
   margin-inline: auto;
 }
 
+.app-shell.is-empty .reader-workspace {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
 .reader-workspace.has-document {
   display: grid;
   width: calc(100% - 32px);
@@ -216,6 +230,25 @@ button:focus-visible,
   cursor: not-allowed;
 }
 
+.reader-control-intro {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.reader-control-intro strong {
+  font-family: var(--font-display);
+  font-size: 20px;
+}
+
+.reader-control-intro span {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .page-controls span,
 .zoom-controls span {
   min-width: 86px;
@@ -228,15 +261,10 @@ button:focus-visible,
   min-width: 48px;
 }
 
-.reader-instruction {
-  margin: 16px 0;
-  padding: 16px 0;
-  border-top: 1px solid var(--color-border);
+.page-controls {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--color-border);
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.45;
-  text-align: left;
 }
 
 .document-header {
@@ -360,6 +388,16 @@ button:focus-visible,
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   background: var(--color-canvas);
+}
+
+.reader-workspace.is-empty .reader-stage {
+  height: 100%;
+  overflow: hidden;
+}
+
+.reader-workspace.is-empty .empty-reader {
+  height: 100%;
+  min-height: 0;
 }
 
 .reader-workspace.has-document .reader-stage {
@@ -590,9 +628,23 @@ button:focus-visible,
     display: grid;
     width: 100%;
     align-items: center;
-    grid-template-columns: auto minmax(180px, 1fr) auto;
+    grid-template-columns: minmax(210px, 1fr) auto auto;
     gap: 16px;
     padding: 8px 10px;
+  }
+
+  .reader-control-intro {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .reader-control-intro strong {
+    font-size: 18px;
+  }
+
+  .reader-control-intro span {
+    font-size: 13px;
   }
 
   .page-controls,
@@ -600,11 +652,10 @@ button:focus-visible,
     width: auto;
   }
 
-  .reader-instruction {
+  .page-controls {
     margin: 0;
     padding: 0;
     border: 0;
-    text-align: center;
   }
 }
 
@@ -633,6 +684,10 @@ button:focus-visible,
 
   .reader-control-bar {
     grid-template-columns: 1fr;
+  }
+
+  .reader-control-intro {
+    text-align: center;
   }
 
   .document-summary {

@@ -625,7 +625,7 @@ function App() {
   );
 
   return (
-    <main className={`app-shell ${file ? 'has-document' : ''}`}>
+    <main className={`app-shell ${file ? 'has-document' : 'is-empty'}`}>
       <header className="browser-bar">
         <div className="document-summary">
           <div className="document-path" title={fileName}>
@@ -662,7 +662,7 @@ function App() {
             <span aria-hidden="true">▣</span>
             Dictionary
           </button>
-          {isPdfHandoff && file && (
+          {file && (
             <FilePickerButton
               className="compact-file-button"
               label="Choose another PDF"
@@ -672,17 +672,14 @@ function App() {
         </div>
       </header>
 
-      {!isPdfHandoff && (
+      {!isPdfHandoff && !file && (
         <section className="document-header" aria-label="PDF controls">
           <div>
             <h1>LinguaRead</h1>
             <p>Double-click a word to see more information.</p>
           </div>
 
-          <FilePickerButton
-            label={file ? 'Choose another PDF' : 'Choose PDF'}
-            onFile={handleFile}
-          />
+          <FilePickerButton label="Choose PDF" onFile={handleFile} />
         </section>
       )}
 
@@ -724,6 +721,11 @@ function App() {
       >
         {file && (
           <section className="reader-control-bar" aria-label="Reader controls">
+            <div className="reader-control-intro">
+              <strong>LinguaRead</strong>
+              <span>Double-click a word to see more information.</span>
+            </div>
+
             <div className="page-controls">
               <button
                 type="button"
@@ -745,10 +747,6 @@ function App() {
                 →
               </button>
             </div>
-
-            <p className="reader-instruction">
-              Double-click a word to see more information.
-            </p>
 
             <div className="zoom-controls">
               <button
