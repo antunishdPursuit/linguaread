@@ -1,7 +1,7 @@
 :root {
-  color: #2e2a24;
-  background: #f5f0e6;
-  font-family: "Courier New", ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--color-text);
+  background: var(--color-surface-subtle);
+  font-family: var(--font-interface);
 }
 
 * { box-sizing: border-box; }
@@ -10,7 +10,7 @@ body { margin: 0; }
 
 button { font: inherit; }
 
-button:focus-visible { outline: 3px solid #1f6f8b; outline-offset: 2px; }
+button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 
 .popup-shell { width: 320px; padding: 16px; }
 
@@ -19,12 +19,12 @@ header {
   align-items: center;
   gap: 11px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #d8d0c2;
+  border-bottom: 1px solid var(--color-border);
 }
 
 h1, h2, p { margin-top: 0; }
 
-h1, h2 { font-family: Georgia, "Times New Roman", serif; }
+h1, h2 { font-family: var(--font-display); }
 
 h1 { margin-bottom: 0; font-size: 24px; }
 
@@ -36,35 +36,40 @@ section { padding: 14px 0 2px; text-align: center; }
   height: 40px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid #c7bcab;
-  color: #c95d42;
-  background: #fffdf7;
-  box-shadow: 3px 3px 0 #d7cec0;
-  font-size: 8px;
+  border: 1px solid var(--color-border);
+  color: var(--color-primary);
+  background: var(--color-surface);
+  box-shadow: 3px 3px 0 var(--color-border);
+  font-size: 10px;
   font-weight: 700;
 }
 
 h2 { margin-bottom: 7px; font-size: 19px; line-height: 1.15; }
 
-.file-name { margin-bottom: 9px; overflow-wrap: anywhere; font-size: 11px; font-weight: 700; }
+.file-name { margin-bottom: 9px; overflow-wrap: anywhere; font-size: 13px; font-weight: 700; }
 
-.note, .empty-state p { margin-bottom: 9px; color: #766f63; font-size: 11px; line-height: 1.45; }
+.note, .empty-state p { margin-bottom: 9px; color: var(--color-text-muted); font-size: 13px; line-height: 1.45; }
 
 button {
   width: 100%;
   min-height: 42px;
   margin-top: 5px;
-  border: 1px solid #c95d42;
-  border-radius: 6px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-control);
   color: #fff;
-  background: #c95d42;
+  background: var(--color-primary);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--color-primary-hover);
+  background: var(--color-primary-hover);
 }
 
 button:disabled { cursor: wait; opacity: .7; }
 
 .empty-state { padding-bottom: 12px; }
 
-.error { margin: 14px 0 0; padding: 10px; border: 1px solid #c97c6b; border-radius: 6px; color: #7c2f21; background: #fbe7e1; font-size: 11px; line-height: 1.4; }
+.error { margin: 14px 0 0; padding: 10px; border: 1px solid var(--color-error); border-radius: var(--radius-control); color: var(--color-error); background: var(--color-error-surface); font-size: 13px; line-height: 1.4; }

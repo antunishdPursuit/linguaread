@@ -1,0 +1,32 @@
+:root {
+  --font-interface: "Source Sans 3 Variable", "Segoe UI", sans-serif;
+  --font-display: "Source Serif 4 Variable", Georgia, serif;
+  --color-canvas: #d8d3c8;
+  --color-surface: #fffcf5;
+  --color-surface-subtle: #f3eee4;
+  --color-text: #231f1a;
+  --color-text-muted: #615b52;
+  --color-border: #cfc6b8;
+  --color-primary: #a8442f;
+  --color-primary-hover: #8f3525;
+  --color-focus: #176f68;
+  --color-level: #c59b36;
+  --color-error: #9f3428;
+  --color-error-surface: #fbe9e4;
+  --shadow-control: 0 6px 18px rgb(35 31 26 / 10%);
+  --shadow-card: 0 16px 42px rgb(35 31 26 / 20%);
+  --radius-control: 8px;
+  --radius-card: 12px;
+
+  /* Keep the existing component names readable while they move to semantic
+     roles across the reader, popup, and Dictionary. */
+  --paper: var(--color-surface);
+  --surface: var(--color-surface-subtle);
+  --ink: var(--color-text);
+  --muted: var(--color-text-muted);
+  --line: var(--color-border);
+  --orange: var(--color-primary);
+  --teal: var(--color-focus);
+  --green: var(--color-focus);
+  --gold: var(--color-level);
+}

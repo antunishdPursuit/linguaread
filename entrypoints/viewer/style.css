@@ -1,15 +1,8 @@
 :root {
-  color: #2e2a24;
-  background: #cfc7b8;
-  font-family: "Courier New", ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--color-text);
+  background: var(--color-canvas);
+  font-family: var(--font-interface);
   font-synthesis: none;
-  --paper: #fffaf0;
-  --ink: #2e2a24;
-  --muted: #766f63;
-  --line: #d8d0c2;
-  --orange: #c95d42;
-  --teal: #2f8d90;
-  --gold: #b58b2d;
 }
 
 * {
@@ -33,7 +26,7 @@ button {
 button:focus-visible,
 .file-button:focus-within,
 .compact-file-button:focus-within {
-  outline: 3px solid #1f6f8b;
+  outline: 3px solid var(--color-focus);
   outline-offset: 3px;
 }
 
@@ -52,8 +45,8 @@ button:focus-visible,
   align-items: center;
   min-height: 58px;
   padding: 10px clamp(16px, 3vw, 40px);
-  border-bottom: 1px solid #c9c0b1;
-  background: rgb(244 239 229 / 96%);
+  border-bottom: 1px solid var(--color-border);
+  background: rgb(255 252 245 / 96%);
   backdrop-filter: blur(12px);
 }
 
@@ -67,17 +60,17 @@ button:focus-visible,
   align-items: center;
   min-width: 0;
   padding: 9px 14px;
-  border: 1px solid #ddd5c8;
-  border-radius: 7px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
   color: var(--muted);
-  background: #ebe5d9;
-  font-size: 12px;
+  background: var(--color-surface-subtle);
+  font-size: 14px;
   white-space: nowrap;
 }
 
 .document-path strong {
   overflow: hidden;
-  color: #4f493f;
+  color: var(--color-text);
   font-weight: 500;
   text-overflow: ellipsis;
 }
@@ -100,7 +93,7 @@ button:focus-visible,
 .level-label {
   margin-right: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   text-transform: lowercase;
 }
 
@@ -108,18 +101,18 @@ button:focus-visible,
   min-width: 30px;
   min-height: 30px;
   padding: 4px;
-  border: 1px solid #cfc7b8;
+  border: 1px solid var(--color-border);
   border-radius: 5px;
-  color: #9b9488;
-  background: #e5dfd4;
-  font-size: 11px;
+  color: var(--color-text-muted);
+  background: var(--color-surface-subtle);
+  font-size: 12px;
   opacity: 0.58;
   cursor: not-allowed;
 }
 
 .level-selector button.active {
   border-color: var(--gold);
-  color: #fff;
+  color: var(--color-text);
   background: var(--gold);
   opacity: 1;
 }
@@ -134,10 +127,10 @@ button:focus-visible,
   justify-content: center;
   min-height: 38px;
   padding: 9px 14px;
-  border: 1px solid #27231e;
-  border-radius: 7px;
+  border: 1px solid var(--color-text);
+  border-radius: var(--radius-control);
   color: #fff;
-  background: #27231e;
+  background: var(--color-text);
   font-weight: 700;
 }
 
@@ -159,10 +152,10 @@ button:focus-visible,
   gap: 16px;
   margin-top: 12px;
   padding: 8px 10px;
-  border: 1px solid #c8c0b1;
-  border-radius: 8px;
-  background: rgb(245 240 230 / 96%);
-  box-shadow: 0 7px 18px rgb(62 50 35 / 9%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: rgb(255 252 245 / 96%);
+  box-shadow: var(--shadow-control);
   backdrop-filter: blur(10px);
 }
 
@@ -174,20 +167,20 @@ button:focus-visible,
 }
 
 .reader-control-bar button {
-  min-height: 30px;
-  padding: 5px 9px;
-  border: 1px solid #c8bead;
-  border-radius: 5px;
-  color: #574f44;
-  background: #fffaf0;
-  font-size: 10px;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background: var(--color-surface);
+  font-size: 14px;
   font-weight: 700;
 }
 
 .reader-control-bar button:hover:not(:disabled) {
   border-color: var(--orange);
-  color: #913f2d;
-  background: #f8e4dc;
+  color: var(--color-primary-hover);
+  background: var(--color-surface-subtle);
 }
 
 .reader-control-bar button:disabled {
@@ -199,7 +192,7 @@ button:focus-visible,
 .zoom-controls span {
   min-width: 86px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
   text-align: center;
 }
 
@@ -210,7 +203,7 @@ button:focus-visible,
 .reader-instruction {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
   text-align: center;
 }
 
@@ -221,9 +214,9 @@ button:focus-visible,
   gap: 24px;
   margin-top: 26px;
   padding: 18px 22px;
-  border: 1px solid #c8c0b1;
-  border-radius: 10px;
-  background: rgb(245 240 230 / 88%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: rgb(255 252 245 / 92%);
 }
 
 .document-header h1,
@@ -232,8 +225,8 @@ button:focus-visible,
 }
 
 .document-header h1 {
-  color: #1f1c18;
-  font-family: Georgia, "Times New Roman", serif;
+  color: var(--color-text);
+  font-family: var(--font-display);
   font-size: clamp(26px, 4vw, 38px);
   letter-spacing: -0.035em;
 }
@@ -241,12 +234,12 @@ button:focus-visible,
 .document-header > div > p:last-child {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .card-label {
   color: var(--orange);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -262,11 +255,11 @@ button:focus-visible,
   flex: 0 0 auto;
   min-height: 34px;
   padding: 7px 10px;
-  border-color: #9f9585;
-  color: #514a40;
-  background: #fffaf0;
+  border-color: var(--color-border);
+  color: var(--color-text);
+  background: var(--color-surface);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .file-button input,
@@ -282,10 +275,10 @@ button:focus-visible,
 .error-message {
   margin-top: 12px;
   padding: 12px 14px;
-  border: 1px solid #c97c6b;
-  border-radius: 7px;
-  color: #7c2f21;
-  background: #fbe7e1;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-control);
+  color: var(--color-error);
+  background: var(--color-error-surface);
 }
 
 .permission-message {
@@ -303,10 +296,10 @@ button:focus-visible,
 .permission-action {
   flex: 0 0 auto;
   padding: 9px 12px;
-  border: 1px solid #7c2f21;
-  border-radius: 6px;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-control);
   color: #fff;
-  background: #7c2f21;
+  background: var(--color-error);
   cursor: pointer;
   font: inherit;
   font-weight: 700;
@@ -332,9 +325,9 @@ button:focus-visible,
   margin-top: 18px;
   padding: 28px;
   overflow: auto;
-  border: 1px solid #bdb5a8;
-  border-radius: 10px;
-  background: #bbb3a4;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-canvas);
 }
 
 .react-pdf__Document {
@@ -351,7 +344,7 @@ button:focus-visible,
   position: relative;
   width: fit-content;
   scroll-margin-top: 60px;
-  box-shadow: 0 12px 34px rgb(52 44 33 / 24%);
+  box-shadow: 0 12px 34px rgb(35 31 26 / 22%);
 }
 
 .react-pdf__Page {
@@ -368,9 +361,9 @@ button:focus-visible,
   padding: 3px 6px;
   place-items: center;
   border-radius: 999px;
-  color: #665e53;
-  background: rgb(245 240 230 / 88%);
-  font-size: 9px;
+  color: var(--color-text-muted);
+  background: rgb(255 252 245 / 90%);
+  font-size: 12px;
   font-weight: 700;
   pointer-events: none;
 }
@@ -379,11 +372,11 @@ button:focus-visible,
   display: grid;
   min-height: 88px;
   place-items: center;
-  border: 1px dashed #a89e8f;
-  border-radius: 8px;
-  color: #655e53;
-  background: rgb(245 240 230 / 72%);
-  font-size: 10px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  background: rgb(255 252 245 / 78%);
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -394,7 +387,7 @@ button:focus-visible,
   margin: 0;
   place-items: center;
   align-content: center;
-  color: #5f584e;
+  color: var(--color-text-muted);
   text-align: center;
 }
 
@@ -405,7 +398,7 @@ button:focus-visible,
 
 .empty-reader h2 {
   margin-top: 20px;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 24px;
 }
 
@@ -421,10 +414,10 @@ button:focus-visible,
   width: 92px;
   height: 116px;
   place-items: center;
-  border: 1px solid #c7bcab;
+  border: 1px solid var(--color-border);
   color: var(--orange);
   background: var(--paper);
-  box-shadow: 5px 6px 0 #9f9688;
+  box-shadow: 5px 6px 0 var(--color-border);
   font-weight: 700;
 }
 
@@ -433,10 +426,10 @@ button:focus-visible,
   z-index: 50;
   width: min(340px, calc(100vw - 32px));
   padding: 16px;
-  border: 1px solid #8b8172;
-  border-radius: 8px;
-  background: #fffdf7;
-  box-shadow: 0 16px 42px rgb(46 38 28 / 22%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
 
 .word-card p {
@@ -452,7 +445,7 @@ button:focus-visible,
 }
 
 .word-pair strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 24px;
 }
 
@@ -463,7 +456,7 @@ button:focus-visible,
 
 .pinyin {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .word-details {
@@ -481,7 +474,7 @@ button:focus-visible,
 
 .word-details dt {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -489,8 +482,8 @@ button:focus-visible,
 
 .word-details dd {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 13px;
+  font-family: var(--font-display);
+  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -504,7 +497,7 @@ button:focus-visible,
 .word-unavailable p {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .card-close {
@@ -532,8 +525,8 @@ button:focus-visible,
 }
 
 .primary-button.selected {
-  border-color: #8a6b1d;
-  background: #8a6b1d;
+  border-color: var(--color-focus);
+  background: var(--color-focus);
 }
 
 .sr-only {

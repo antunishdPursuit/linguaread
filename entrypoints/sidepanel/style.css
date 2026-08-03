@@ -1,16 +1,8 @@
 :root {
-  color: #2e2a24;
-  background: #f5f0e6;
-  font-family: "Courier New", ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--color-text);
+  background: var(--color-surface-subtle);
+  font-family: var(--font-interface);
   font-synthesis: none;
-  --paper: #fffaf0;
-  --surface: #f5f0e6;
-  --ink: #2e2a24;
-  --muted: #766f63;
-  --line: #d8d0c2;
-  --orange: #c95d42;
-  --green: #5f9a78;
-  --gold: #b58b2d;
 }
 
 * {
@@ -32,7 +24,7 @@ button {
 
 button:focus-visible,
 input:focus-visible {
-  outline: 3px solid #1f6f8b;
+  outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
 
@@ -63,7 +55,7 @@ input:focus-visible {
   width: 34px;
   height: 34px;
   place-items: center;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   color: #fff;
   background: var(--orange);
 }
@@ -75,16 +67,16 @@ p {
 
 .brand h1 {
   margin-bottom: 0;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 19px;
+  font-family: var(--font-display);
+  font-size: 21px;
 }
 
 .level-badge {
   padding: 5px 8px;
-  border-radius: 5px;
-  color: #fff;
+  border-radius: 6px;
+  color: var(--color-text);
   background: var(--gold);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -92,13 +84,13 @@ p {
   margin-inline: -16px;
   padding: 13px 16px 12px;
   border-bottom: 1px solid var(--line);
-  background: #f9f4ea;
+  background: var(--color-surface-subtle);
 }
 
 .panel-purpose p {
   margin-bottom: 3px;
   color: var(--orange);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -106,8 +98,8 @@ p {
 
 .panel-purpose h2 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 16px;
+  font-family: var(--font-display);
+  font-size: 18px;
 }
 
 .search-field {
@@ -116,10 +108,10 @@ p {
   align-items: center;
   margin-top: 14px;
   padding: 10px 12px;
-  border: 1px solid #d8cfbf;
-  border-radius: 6px;
-  color: #81786b;
-  background: #eae3d6;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
 }
 
 .search-field input {
@@ -128,17 +120,17 @@ p {
   outline: 0;
   color: var(--ink);
   background: transparent;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .search-field input::placeholder {
-  color: #8d8579;
+  color: var(--color-text-muted);
 }
 
 .list-summary {
   margin: 14px 0 8px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
 }
 
@@ -153,7 +145,7 @@ p {
 .word-item {
   padding: 13px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius-card);
   background: var(--paper);
 }
 
@@ -171,7 +163,7 @@ p {
 }
 
 .word-title strong {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .mandarin {
@@ -183,9 +175,9 @@ p {
 .cefr {
   padding: 3px 6px;
   border-radius: 4px;
-  color: #7a631d;
-  background: #f0e4bd;
-  font-size: 9px;
+  color: var(--color-text);
+  background: var(--color-level);
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -201,35 +193,35 @@ p {
 
 .pinyin {
   margin-top: 4px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .meaning {
   padding-top: 7px;
-  border-top: 1px solid #e5ded2;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 12px;
+  border-top: 1px solid var(--color-border);
+  font-family: var(--font-display);
+  font-size: 14px;
 }
 
 .simpler {
-  color: #5d554a;
-  font-size: 10px;
+  color: var(--color-text-muted);
+  font-size: 12px;
 }
 
 .panel-error {
   padding: 10px;
-  border: 1px solid #c97c6b;
-  border-radius: 6px;
-  color: #7c2f21;
-  background: #fbe7e1;
-  font-size: 11px;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-control);
+  color: var(--color-error);
+  background: var(--color-error-surface);
+  font-size: 13px;
   line-height: 1.4;
 }
 
 .empty-state {
   padding: 34px 16px;
-  border: 1px dashed #bfb5a6;
-  border-radius: 7px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-card);
   color: var(--muted);
   text-align: center;
 }
@@ -249,7 +241,7 @@ p {
 .empty-state p {
   margin: 6px auto 0;
   max-width: 230px;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
