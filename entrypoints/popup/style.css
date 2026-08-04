@@ -68,4 +68,19 @@ button:hover:not(:disabled) {
 
 button:disabled { cursor: wait; opacity: .7; }
 
+.settings-link {
+  min-height: 34px;
+  margin-top: 12px;
+  border-color: transparent;
+  color: var(--color-text-muted);
+  background: transparent;
+  font-size: 13px;
+}
+
+.settings-link:hover:not(:disabled) {
+  border-color: var(--color-border);
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
 .error { margin: 14px 0 0; padding: 10px; border: 1px solid var(--color-error); border-radius: var(--radius-control); color: var(--color-error); background: var(--color-error-surface); font-size: 13px; line-height: 1.4; }
