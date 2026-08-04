@@ -11,6 +11,10 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
+import {
+  acceptLanguageDisclosure,
+  hasAcceptedLanguageDisclosure,
+} from '../../lib/languageDisclosure';
 import { loadWordHelp } from '../../lib/wordHelp';
 import {
   buildPdfWordSpatialIndex,
@@ -44,7 +48,7 @@ type ActiveCard = {
   message?: string;
   result: LanguageResult | null;
   source?: 'broker' | 'cache';
-  status: 'error' | 'loading' | 'ready';
+  status: 'disclosure' | 'error' | 'loading' | 'ready';
   sourceWord: string;
   target: PdfWordTarget;
   left: number;
@@ -256,6 +260,8 @@ function App() {
   const [baseViewerWidth, setBaseViewerWidth] = useState(760);
   const [zoom, setZoom] = useState(1);
   const [activeCard, setActiveCard] = useState<ActiveCard | null>(null);
+  const [languageDisclosureAccepted, setLanguageDisclosureAccepted] =
+    useState(false);
   const [vocabulary, setVocabulary] = useState<VocabularyState>(
     EMPTY_VOCABULARY_STATE,
   );
@@ -284,6 +290,12 @@ function App() {
       .then(setVocabulary)
       .catch(() => setError('LinguaRead could not load your Dictionary.'));
     return subscribeToVocabularyState(setVocabulary);
+  }, []);
+
+  useEffect(() => {
+    void hasAcceptedLanguageDisclosure()
+      .then(setLanguageDisclosureAccepted)
+      .catch(() => setLanguageDisclosureAccepted(false));
   }, []);
 
   const handleFile = useCallback((nextFile?: File) => {
@@ -472,7 +484,7 @@ function App() {
     window.getSelection()?.removeAllRanges();
   }, []);
 
-  const showCard = useCallback((target: PdfWordTarget, rect: DOMRect) => {
+  const requestWordHelp = useCallback((target: PdfWordTarget, rect: DOMRect) => {
     const requestId = wordHelpRequestRef.current + 1;
     wordHelpRequestRef.current = requestId;
     const { left, top } = positionWordCard(rect);
@@ -513,6 +525,49 @@ function App() {
       setActiveCard(resolvedCard);
     });
   }, []);
+
+  const showCard = useCallback(
+    (target: PdfWordTarget, rect: DOMRect) => {
+      if (languageDisclosureAccepted) {
+        requestWordHelp(target, rect);
+        return;
+      }
+
+      wordHelpRequestRef.current += 1;
+      const { left, top } = positionWordCard(rect);
+      const disclosureCard: ActiveCard = {
+        result: null,
+        status: 'disclosure',
+        sourceWord: target.word,
+        target,
+        left,
+        top,
+      };
+      activeCardRef.current = disclosureCard;
+      setActiveCard(disclosureCard);
+    },
+    [languageDisclosureAccepted, requestWordHelp],
+  );
+
+  const continueWithWordHelp = useCallback(async () => {
+    const currentCard = activeCardRef.current;
+    if (!currentCard || currentCard.status !== 'disclosure') return;
+
+    try {
+      await acceptLanguageDisclosure();
+      setLanguageDisclosureAccepted(true);
+      const rectangle = getPdfWordViewportRectangle(currentCard.target);
+      if (!rectangle) {
+        closeActiveCard();
+        return;
+      }
+      requestWordHelp(currentCard.target, rectangle);
+    } catch {
+      setError(
+        'LinguaRead could not save your data-use choice. Try again.',
+      );
+    }
+  }, [closeActiveCard, requestWordHelp]);
 
   const retryActiveWord = useCallback(() => {
     const currentCard = activeCardRef.current;
@@ -870,17 +925,31 @@ function App() {
             ×
           </button>
           <p className="card-label">
-            {activeCard.status === 'ready' &&
-            activeCard.source === 'cache'
-              ? 'Word help · saved result'
-              : 'Word help'}
+            {activeCard.status === 'disclosure'
+              ? 'Data use'
+              : activeCard.status === 'ready' &&
+                  activeCard.source === 'cache'
+                ? 'Word help · saved result'
+                : 'Word help'}
           </p>
-          <div className="word-pair">
-            <strong>{activeCard.sourceWord}</strong>
-            {activeCard.status === 'ready' && activeCard.result && (
-              <span>{activeCard.result.mandarin}</span>
-            )}
-          </div>
+          {activeCard.status === 'disclosure' ? (
+            <div className="disclosure-copy">
+              <strong>Before using word help</strong>
+              <p>
+                LinguaRead sends the selected word and its surrounding
+                sentence to its language service. The complete PDF is not
+                uploaded.
+              </p>
+              <p>The original PDF stays in your browser.</p>
+            </div>
+          ) : (
+            <div className="word-pair">
+              <strong>{activeCard.sourceWord}</strong>
+              {activeCard.status === 'ready' && activeCard.result && (
+                <span>{activeCard.result.mandarin}</span>
+              )}
+            </div>
+          )}
           {activeCard.status === 'ready' && activeCard.result && (
             <p className="pinyin">{activeCard.result.pinyin}</p>
           )}
@@ -927,6 +996,14 @@ function App() {
             </div>
           )}
           <div className="card-actions">
+            {activeCard.status === 'disclosure' && (
+              <button
+                className="primary-button"
+                onClick={() => void continueWithWordHelp()}
+              >
+                Continue
+              </button>
+            )}
             {activeCard.status === 'error' && (
               <button
                 className="card-secondary-button"
@@ -935,16 +1012,18 @@ function App() {
                 Try again
               </button>
             )}
-            <button
-              className={`primary-button ${activeWordHasCurrentResult ? 'selected' : ''}`}
-              disabled={
-                activeCard.status === 'loading' ||
-                activeWordHasCurrentResult
-              }
-              onClick={() => void saveActiveWord()}
-            >
-              {saveButtonLabel}
-            </button>
+            {activeCard.status !== 'disclosure' && (
+              <button
+                className={`primary-button ${activeWordHasCurrentResult ? 'selected' : ''}`}
+                disabled={
+                  activeCard.status === 'loading' ||
+                  activeWordHasCurrentResult
+                }
+                onClick={() => void saveActiveWord()}
+              >
+                {saveButtonLabel}
+              </button>
+            )}
           </div>
         </aside>
       )}

@@ -531,6 +531,24 @@ button:focus-visible,
   font-size: 23px;
 }
 
+.disclosure-copy {
+  margin: 12px 0 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.disclosure-copy strong {
+  font-family: var(--font-display);
+  font-size: 20px;
+}
+
+.disclosure-copy p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .pinyin {
   color: var(--muted);
   font-size: 13px;
