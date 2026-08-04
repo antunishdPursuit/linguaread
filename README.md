@@ -62,3 +62,6 @@ The current goal is to test whether focused word help makes academic reading eas
 - **Dennis** — product development, PDF experience, word interactions, and integration
 - **Ji** — product collaboration and language-learning direction
 - **Hack Your Summer** — program, community, and mentorship support
+- English-Chinese dictionary data from
+  [FreeDict](https://freedict.org/) release 2025.11.23, licensed under
+  [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
