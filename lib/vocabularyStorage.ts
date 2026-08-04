@@ -69,6 +69,28 @@ export function dictionaryHasWord(
   );
 }
 
+export function findVocabularyEntry(
+  state: VocabularyState,
+  sourceWord: string,
+): VocabularyEntry | null {
+  const normalizedWord = normalizedSourceWord(sourceWord);
+  return (
+    state.entries.find(
+      (entry) =>
+        normalizedSourceWord(entry.sourceWord) === normalizedWord,
+    ) ?? null
+  );
+}
+
+export function removeVocabularyEntry(
+  state: VocabularyState,
+  entryId: string,
+): VocabularyState {
+  return {
+    entries: state.entries.filter((entry) => entry.id !== entryId),
+  };
+}
+
 function isVocabularyEntry(value: unknown): value is VocabularyEntry {
   if (!value || typeof value !== 'object') return false;
   const entry = value as Partial<VocabularyEntry>;

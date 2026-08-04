@@ -6,7 +6,9 @@ import {
   createWordOnlyVocabularyEntry,
   dictionaryHasWord,
   EMPTY_VOCABULARY_STATE,
+  findVocabularyEntry,
   normalizeVocabularyState,
+  removeVocabularyEntry,
   saveVocabularyEntry,
   toVocabularyEntry,
 } from './vocabularyStorage';
@@ -51,5 +53,19 @@ describe('Dictionary state', () => {
     );
 
     expect(saved.entries).toEqual([ready]);
+  });
+
+  it('finds and removes one saved Dictionary entry', () => {
+    const saved = saveVocabularyEntry(
+      EMPTY_VOCABULARY_STATE,
+      innovation,
+    );
+
+    expect(
+      findVocabularyEntry(saved, innovation.sourceWord),
+    ).toEqual(innovation);
+    expect(removeVocabularyEntry(saved, innovation.id)).toEqual({
+      entries: [],
+    });
   });
 });

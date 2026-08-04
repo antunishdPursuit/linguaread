@@ -23,8 +23,8 @@ import {
 import type { LanguageResult, VocabularyState } from '../../lib/types';
 import {
   createWordOnlyVocabularyEntry,
-  dictionaryHasWord,
   EMPTY_VOCABULARY_STATE,
+  findVocabularyEntry,
   readVocabularyState,
   saveVocabularyEntry,
   subscribeToVocabularyState,
@@ -648,26 +648,41 @@ function App() {
     };
   }, [closeActiveCard, showCard]);
 
-  const saveActiveWord = () => {
-    if (!activeCard) return;
+  const saveActiveWord = async () => {
+    if (!activeCard || activeCard.status === 'loading') return;
     const entry = activeCard.result
       ? toVocabularyEntry(activeCard.result)
       : createWordOnlyVocabularyEntry(activeCard.sourceWord);
     const nextState = saveVocabularyEntry(vocabulary, entry);
     setVocabulary(nextState);
     setStatusMessage(`${entry.sourceWord} saved to your Dictionary.`);
-    void openSidePanel();
 
-    void writeVocabularyState(nextState).catch(() => {
+    try {
+      await writeVocabularyState(nextState);
+      await openSidePanel();
+    } catch {
       setVocabulary(vocabulary);
       setStatusMessage('');
       setError('LinguaRead could not save that word. Try again.');
-    });
+    }
   };
 
-  const activeWordIsSaved = Boolean(
-    activeCard && dictionaryHasWord(vocabulary, activeCard.sourceWord),
+  const savedActiveEntry = activeCard
+    ? findVocabularyEntry(vocabulary, activeCard.sourceWord)
+    : null;
+  const activeWordHasCurrentResult = Boolean(
+    savedActiveEntry &&
+      (!activeCard?.result ||
+        savedActiveEntry.id === activeCard.result.id),
   );
+  const saveButtonLabel =
+    activeCard?.status === 'loading'
+      ? 'Getting analysis…'
+      : activeWordHasCurrentResult
+        ? 'Saved to Dictionary'
+        : savedActiveEntry && activeCard?.result
+          ? 'Update Dictionary'
+          : 'Save to Dictionary';
 
   return (
     <main className={`app-shell ${file ? 'has-document' : 'is-empty'}`}>
@@ -938,13 +953,14 @@ function App() {
               </button>
             )}
             <button
-              className={`primary-button ${activeWordIsSaved ? 'selected' : ''}`}
-              disabled={activeWordIsSaved}
-              onClick={saveActiveWord}
+              className={`primary-button ${activeWordHasCurrentResult ? 'selected' : ''}`}
+              disabled={
+                activeCard.status === 'loading' ||
+                activeWordHasCurrentResult
+              }
+              onClick={() => void saveActiveWord()}
             >
-              {activeWordIsSaved
-                ? 'Saved to Dictionary'
-                : 'Save to Dictionary'}
+              {saveButtonLabel}
             </button>
           </div>
         </aside>
