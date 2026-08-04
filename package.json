@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
+    "broker:check": "wrangler deploy --dry-run",
+    "broker:dev": "wrangler dev",
     "compile": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -28,6 +30,7 @@
     "@wxt-dev/module-react": "^1.1.5",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10",
+    "wrangler": "^4.118.0",
     "wxt": "^0.20.27"
   }
 }

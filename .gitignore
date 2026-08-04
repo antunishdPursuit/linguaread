@@ -1,12 +1,13 @@
 node_modules/
 .wxt/
+.wrangler/
 .output/
 dist/
 coverage/
+.dev.vars*
 .env
 .env.*
 !.env.example
 *.log
 local-fixtures/
 *.pdf
-

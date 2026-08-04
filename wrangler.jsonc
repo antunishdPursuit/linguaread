@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "linguaread-language-broker",
+  "main": "broker/src/index.ts",
+  "compatibility_date": "2026-08-04",
+  "workers_dev": true,
+  "vars": {
+    "ALLOWED_ORIGIN": "chrome-extension://replace-before-deploy"
+  },
+  "secrets": {
+    "required": [
+      "GEMINI_API_KEY"
+    ]
+  },
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "20260804",
+      "simple": {
+        "limit": 20,
+        "period": 60
+      }
+    }
+  ]
+}
