@@ -235,8 +235,23 @@ async function handleWordHelp(
       if (error.status === 400) {
         return errorResponse('provider_request_rejected', 502, origin);
       }
-      if (error.status === 401 || error.status === 403) {
+      if (error.status === 401) {
         return errorResponse('provider_auth_failed', 502, origin);
+      }
+      if (error.status === 403) {
+        const safeErrorByReason = {
+          api_disabled: 'provider_api_disabled',
+          auth_key_unsupported: 'provider_auth_key_unsupported',
+          key_blocked: 'provider_key_blocked',
+          permission_denied: 'provider_permission_denied',
+          project_denied: 'provider_project_denied',
+          unknown: 'provider_permission_denied',
+        } as const;
+        return errorResponse(
+          safeErrorByReason[error.reason],
+          502,
+          origin,
+        );
       }
       if (error.status === 404) {
         return errorResponse('provider_model_unavailable', 502, origin);

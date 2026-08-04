@@ -40,8 +40,19 @@ type InteractionStep = {
   type?: unknown;
 };
 
+export type GeminiFailureReason =
+  | 'api_disabled'
+  | 'auth_key_unsupported'
+  | 'key_blocked'
+  | 'permission_denied'
+  | 'project_denied'
+  | 'unknown';
+
 export class GeminiRequestError extends Error {
-  constructor(readonly status: number) {
+  constructor(
+    readonly status: number,
+    readonly reason: GeminiFailureReason = 'unknown',
+  ) {
     super(`Gemini request failed with status ${status}.`);
     this.name = 'GeminiRequestError';
   }
@@ -49,6 +60,35 @@ export class GeminiRequestError extends Error {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function classifyGeminiFailure(
+  status: number,
+  providerBody: string,
+): GeminiFailureReason {
+  if (status !== 403) return 'unknown';
+
+  const normalized = providerBody.toLowerCase();
+  if (
+    normalized.includes('reported as leaked') ||
+    normalized.includes('key is blocked')
+  ) {
+    return 'key_blocked';
+  }
+  if (normalized.includes('access_token_type_unsupported')) {
+    return 'auth_key_unsupported';
+  }
+  if (normalized.includes('project has been denied access')) {
+    return 'project_denied';
+  }
+  if (
+    normalized.includes('api has not been used') ||
+    normalized.includes('api is disabled') ||
+    normalized.includes('or it is disabled')
+  ) {
+    return 'api_disabled';
+  }
+  return 'permission_denied';
 }
 
 function buildPrompt(request: BrokerRequest): string {
@@ -128,7 +168,11 @@ export async function requestGeminiSelection(
   });
 
   if (!response.ok) {
-    throw new GeminiRequestError(response.status);
+    const providerBody = await response.text();
+    throw new GeminiRequestError(
+      response.status,
+      classifyGeminiFailure(response.status, providerBody),
+    );
   }
 
   let interaction: unknown;

@@ -256,7 +256,7 @@ describe('Cloudflare language broker', () => {
   it.each([
     [400, 'provider_request_rejected'],
     [401, 'provider_auth_failed'],
-    [403, 'provider_auth_failed'],
+    [403, 'provider_permission_denied'],
     [404, 'provider_model_unavailable'],
     [429, 'provider_rate_limited'],
     [500, 'provider_unavailable'],
@@ -278,6 +278,45 @@ describe('Cloudflare language broker', () => {
       expect(response.status).toBe(502);
       expect(body).toBe(JSON.stringify({ error: expectedError }));
       expect(body).not.toContain('private provider details');
+      expect(body).not.toContain(apiKey);
+    },
+  );
+
+  it.each([
+    ['Your API key was reported as leaked.', 'provider_key_blocked'],
+    [
+      'ACCESS_TOKEN_TYPE_UNSUPPORTED',
+      'provider_auth_key_unsupported',
+    ],
+    [
+      'Your project has been denied access.',
+      'provider_project_denied',
+    ],
+    [
+      'Generative Language API has not been used in this project or it is disabled.',
+      'provider_api_disabled',
+    ],
+  ])(
+    'classifies a 403 provider response without exposing its message',
+    async (providerMessage, expectedError) => {
+      const providerFetch = vi.fn<typeof fetch>().mockResolvedValue(
+        Response.json(
+          { error: { code: 403, message: providerMessage } },
+          { status: 403 },
+        ),
+      );
+
+      const response = await handleRequest(
+        createRequest(),
+        createEnv(),
+        createContext(),
+        { fetch: providerFetch },
+      );
+      const body = await response.text();
+
+      expect(response.status).toBe(502);
+      expect(body).toBe(JSON.stringify({ error: expectedError }));
+      expect(body).not.toContain(providerMessage);
       expect(body).not.toContain(apiKey);
     },
   );
