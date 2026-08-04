@@ -7,7 +7,10 @@ import {
   type BrokerRequest,
   type BrokerResult,
 } from './contract';
-import { requestGeminiSelection } from './gemini';
+import {
+  GeminiRequestError,
+  requestGeminiSelection,
+} from './gemini';
 
 const WORD_HELP_PATH = '/v1/word-help';
 const CLIENT_ID_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
@@ -227,6 +230,20 @@ async function handleWordHelp(
     }
     if (error instanceof Error && error.message === 'server_not_configured') {
       return errorResponse('server_not_configured', 503, origin);
+    }
+    if (error instanceof GeminiRequestError) {
+      if (error.status === 400) {
+        return errorResponse('provider_request_rejected', 502, origin);
+      }
+      if (error.status === 401 || error.status === 403) {
+        return errorResponse('provider_auth_failed', 502, origin);
+      }
+      if (error.status === 404) {
+        return errorResponse('provider_model_unavailable', 502, origin);
+      }
+      if (error.status === 429) {
+        return errorResponse('provider_rate_limited', 502, origin);
+      }
     }
     return errorResponse('provider_unavailable', 502, origin);
   }

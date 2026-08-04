@@ -40,6 +40,13 @@ type InteractionStep = {
   type?: unknown;
 };
 
+export class GeminiRequestError extends Error {
+  constructor(readonly status: number) {
+    super(`Gemini request failed with status ${status}.`);
+    this.name = 'GeminiRequestError';
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -121,7 +128,7 @@ export async function requestGeminiSelection(
   });
 
   if (!response.ok) {
-    throw new Error(`Gemini request failed with status ${response.status}.`);
+    throw new GeminiRequestError(response.status);
   }
 
   let interaction: unknown;
