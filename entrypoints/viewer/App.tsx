@@ -11,9 +11,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import {
-  languageFixtureForWord,
-} from '../../lib/mockLanguage';
+import { loadWordHelp } from '../../lib/wordHelp';
 import {
   buildPdfWordSpatialIndex,
   findPdfWordTargetAtPoint,
@@ -43,7 +41,10 @@ import { consumePdfTransfer } from '../../lib/pdfTransfer';
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 type ActiveCard = {
+  message?: string;
   result: LanguageResult | null;
+  source?: 'cache' | 'gemini';
+  status: 'error' | 'loading' | 'needs_key' | 'ready';
   sourceWord: string;
   target: PdfWordTarget;
   left: number;
@@ -242,6 +243,7 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
 function App() {
   const viewerRef = useRef<HTMLDivElement>(null);
   const activeCardRef = useRef<ActiveCard | null>(null);
+  const wordHelpRequestRef = useRef(0);
   const wordTargetIndexesRef = useRef<Record<number, PdfWordSpatialIndex>>({});
   const isPdfHandoff = isPdfHandoffSearch(window.location.search);
   const [file, setFile] = useState<File | string | null>(null);
@@ -285,6 +287,7 @@ function App() {
   }, []);
 
   const handleFile = useCallback((nextFile?: File) => {
+    wordHelpRequestRef.current += 1;
     activeCardRef.current = null;
     setActiveCard(null);
     window.getSelection()?.removeAllRanges();
@@ -463,17 +466,20 @@ function App() {
   }, []);
 
   const closeActiveCard = useCallback(() => {
+    wordHelpRequestRef.current += 1;
     activeCardRef.current = null;
     setActiveCard(null);
     window.getSelection()?.removeAllRanges();
   }, []);
 
   const showCard = useCallback((target: PdfWordTarget, rect: DOMRect) => {
-    const result = languageFixtureForWord(target.word);
+    const requestId = wordHelpRequestRef.current + 1;
+    wordHelpRequestRef.current = requestId;
     const { left, top } = positionWordCard(rect);
 
     const nextCard: ActiveCard = {
-      result,
+      result: null,
+      status: 'loading',
       sourceWord: target.word,
       target,
       left,
@@ -481,7 +487,46 @@ function App() {
     };
     activeCardRef.current = nextCard;
     setActiveCard(nextCard);
+
+    void loadWordHelp(target.word, target.context).then((outcome) => {
+      if (wordHelpRequestRef.current !== requestId) return;
+      const currentCard = activeCardRef.current;
+      if (!currentCard || currentCard.target.id !== target.id) return;
+
+      const resolvedCard: ActiveCard =
+        outcome.status === 'ready'
+          ? {
+              ...currentCard,
+              result: outcome.result,
+              source: outcome.source,
+              status: 'ready',
+            }
+          : {
+              ...currentCard,
+              message:
+                outcome.status === 'error' ? outcome.message : undefined,
+              result: null,
+              status: outcome.status,
+            };
+
+      activeCardRef.current = resolvedCard;
+      setActiveCard(resolvedCard);
+    });
   }, []);
+
+  const openGeminiSettings = useCallback(() => {
+    void browser.runtime.openOptionsPage().catch(() => {
+      setError('Chrome could not open Gemini settings. Try again.');
+    });
+  }, []);
+
+  const retryActiveWord = useCallback(() => {
+    const currentCard = activeCardRef.current;
+    if (!currentCard) return;
+    const rectangle = getPdfWordViewportRectangle(currentCard.target);
+    if (!rectangle) return;
+    showCard(currentCard.target, rectangle);
+  }, [showCard]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -809,15 +854,22 @@ function App() {
           >
             ×
           </button>
-          <p className="card-label">Word help</p>
+          <p className="card-label">
+            {activeCard.status === 'ready' &&
+            activeCard.source === 'cache'
+              ? 'Word help · saved result'
+              : 'Word help'}
+          </p>
           <div className="word-pair">
             <strong>{activeCard.sourceWord}</strong>
-            {activeCard.result && <span>{activeCard.result.mandarin}</span>}
+            {activeCard.status === 'ready' && activeCard.result && (
+              <span>{activeCard.result.mandarin}</span>
+            )}
           </div>
-          {activeCard.result && (
+          {activeCard.status === 'ready' && activeCard.result && (
             <p className="pinyin">{activeCard.result.pinyin}</p>
           )}
-          {activeCard.result ? (
+          {activeCard.status === 'ready' && activeCard.result ? (
             <dl className="word-details">
               <div>
                 <dt>Level</dt>
@@ -842,14 +894,49 @@ function App() {
             </dl>
           ) : (
             <div className="word-unavailable">
-              <strong>Word help is not connected yet.</strong>
-              <p>
-                This word is selectable. LinguaRead will create its card after
-                the language service is added.
-              </p>
+              {activeCard.status === 'loading' && (
+                <>
+                  <strong>Getting contextual word help…</strong>
+                  <p>
+                    The original English stays visible while LinguaRead checks
+                    this sentence.
+                  </p>
+                </>
+              )}
+              {activeCard.status === 'needs_key' && (
+                <>
+                  <strong>Connect a Gemini test key.</strong>
+                  <p>
+                    LinguaRead needs an active session key before it can create
+                    this word card.
+                  </p>
+                </>
+              )}
+              {activeCard.status === 'error' && (
+                <>
+                  <strong>Word help is unavailable.</strong>
+                  <p>{activeCard.message}</p>
+                </>
+              )}
             </div>
           )}
           <div className="card-actions">
+            {activeCard.status === 'needs_key' && (
+              <button
+                className="card-secondary-button"
+                onClick={openGeminiSettings}
+              >
+                Gemini settings
+              </button>
+            )}
+            {activeCard.status === 'error' && (
+              <button
+                className="card-secondary-button"
+                onClick={retryActiveWord}
+              >
+                Try again
+              </button>
+            )}
             <button
               className={`primary-button ${activeWordIsSaved ? 'selected' : ''}`}
               disabled={activeWordIsSaved}

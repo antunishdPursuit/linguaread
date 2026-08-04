@@ -606,6 +606,16 @@ button:focus-visible,
   background: var(--color-focus);
 }
 
+.card-secondary-button {
+  min-height: 38px;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  background: var(--color-surface);
+  font-weight: 700;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
