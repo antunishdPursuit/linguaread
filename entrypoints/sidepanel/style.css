@@ -156,6 +156,30 @@ p {
   gap: 10px;
 }
 
+.remove-word {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  background: transparent;
+  font-weight: 700;
+}
+
+.remove-word:hover {
+  border-color: var(--color-border);
+  color: var(--color-error);
+  background: var(--color-error-surface);
+}
+
+.remove-word:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 .word-title > div {
   display: flex;
   gap: 10px;

@@ -3,10 +3,20 @@ import type { VocabularyEntry, VocabularyState } from '../../lib/types';
 import {
   EMPTY_VOCABULARY_STATE,
   readVocabularyState,
+  removeVocabularyEntry,
   subscribeToVocabularyState,
+  writeVocabularyState,
 } from '../../lib/vocabularyStorage';
 
-function DictionaryEntries({ entries }: { entries: VocabularyEntry[] }) {
+function DictionaryEntries({
+  entries,
+  onRemove,
+  removingId,
+}: {
+  entries: VocabularyEntry[];
+  onRemove: (entry: VocabularyEntry) => void;
+  removingId: string | null;
+}) {
   if (!entries.length) {
     return (
       <div className="empty-state">
@@ -31,6 +41,16 @@ function DictionaryEntries({ entries }: { entries: VocabularyEntry[] }) {
             {entry.cefr !== 'unknown' && (
               <span className="cefr">{entry.cefr}</span>
             )}
+            <button
+              className="remove-word"
+              type="button"
+              aria-label={`Remove ${entry.sourceWord} from Dictionary`}
+              title={`Remove ${entry.sourceWord}`}
+              disabled={removingId === entry.id}
+              onClick={() => onRemove(entry)}
+            >
+              X
+            </button>
           </div>
           {entry.pinyin && <p className="pinyin">{entry.pinyin}</p>}
           <p className="meaning">
@@ -55,6 +75,7 @@ function App() {
     EMPTY_VOCABULARY_STATE,
   );
   const [error, setError] = useState('');
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
     void readVocabularyState()
@@ -78,6 +99,23 @@ function App() {
       ].some((value) => value.toLowerCase().includes(normalized)),
     );
   }, [query, vocabulary.entries]);
+
+  const removeEntry = async (entry: VocabularyEntry) => {
+    const previousState = vocabulary;
+    const nextState = removeVocabularyEntry(vocabulary, entry.id);
+    setError('');
+    setRemovingId(entry.id);
+    setVocabulary(nextState);
+
+    try {
+      await writeVocabularyState(nextState);
+    } catch {
+      setVocabulary(previousState);
+      setError(`LinguaRead could not remove ${entry.sourceWord}. Try again.`);
+    } finally {
+      setRemovingId(null);
+    }
+  };
 
   return (
     <main className="panel-shell">
@@ -115,7 +153,11 @@ function App() {
         </p>
       )}
 
-      <DictionaryEntries entries={filteredEntries} />
+      <DictionaryEntries
+        entries={filteredEntries}
+        onRemove={(entry) => void removeEntry(entry)}
+        removingId={removingId}
+      />
     </main>
   );
 }
