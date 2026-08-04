@@ -81,6 +81,33 @@ describe('Gemini language service', () => {
     expect(options?.body).not.toContain('tester-key');
   });
 
+  it('passes an abort signal to the provider request', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify(
+          interactionWithText(JSON.stringify(validFields)),
+        ),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+
+    await requestGeminiWordHelp(
+      {
+        apiKey: 'tester-key',
+        sentenceContext: 'The company invested in innovation.',
+        signal: controller.signal,
+        sourceWord: 'innovation',
+      },
+      fetchMock,
+    );
+
+    expect(fetchMock.mock.calls[0][1]?.signal).toBe(controller.signal);
+  });
+
   it('rejects malformed model output instead of inventing missing fields', async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(

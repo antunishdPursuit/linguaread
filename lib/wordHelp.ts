@@ -10,6 +10,7 @@ import {
 import type { LanguageResult } from './types';
 
 const MINIMUM_CONFIDENCE = 0.7;
+const REQUEST_TIMEOUT_MS = 15_000;
 const pendingRequests = new Map<string, Promise<LanguageResult>>();
 
 export type WordHelpOutcome =
@@ -32,6 +33,7 @@ type WordHelpDependencies = {
   request(request: {
     apiKey: string;
     sentenceContext: string;
+    signal?: AbortSignal;
     sourceWord: string;
   }): Promise<LanguageResult>;
   writeCache(cacheKey: string, result: LanguageResult): Promise<void>;
@@ -54,8 +56,18 @@ async function requestOnce(
   const existingRequest = pendingRequests.get(cacheKey);
   if (existingRequest) return existingRequest;
 
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(
+    () => controller.abort(),
+    REQUEST_TIMEOUT_MS,
+  );
   const request = dependencies
-    .request({ apiKey, sentenceContext, sourceWord })
+    .request({
+      apiKey,
+      sentenceContext,
+      signal: controller.signal,
+      sourceWord,
+    })
     .then(async (result) => {
       if (result.confidence < MINIMUM_CONFIDENCE) {
         throw new Error('low_confidence');
@@ -63,7 +75,10 @@ async function requestOnce(
       await dependencies.writeCache(cacheKey, result).catch(() => undefined);
       return result;
     })
-    .finally(() => pendingRequests.delete(cacheKey));
+    .finally(() => {
+      globalThis.clearTimeout(timeout);
+      pendingRequests.delete(cacheKey);
+    });
 
   pendingRequests.set(cacheKey, request);
   return request;

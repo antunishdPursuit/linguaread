@@ -68,6 +68,7 @@ type GeminiInteraction = {
 export type GeminiLanguageRequest = {
   apiKey: string;
   sentenceContext: string;
+  signal?: AbortSignal;
   sourceWord: string;
 };
 
@@ -315,6 +316,7 @@ export async function requestGeminiWordHelp(
     body: JSON.stringify(
       buildGeminiInteractionBody(sourceWord, sentenceContext),
     ),
+    signal: request.signal,
   });
 
   if (!response.ok) {
