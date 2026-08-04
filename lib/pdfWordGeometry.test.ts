@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildPdfWordSpatialIndex,
+  extractSentenceContext,
   findPdfWordTargetAtPoint,
   positionFloatingCard,
   tokenizeEnglishWords,
@@ -29,6 +30,15 @@ describe('PDF word geometry tokenization', () => {
     ]);
   });
 
+  it('extracts only the sentence that contains the selected word', () => {
+    const text =
+      'The first sentence ends here. Ferrari attributed its growth to planning. A final sentence follows.';
+
+    expect(extractSentenceContext(text, text.indexOf('attributed'))).toBe(
+      'Ferrari attributed its growth to planning.',
+    );
+  });
+
   it('converts browser rectangles to page-relative word geometry', () => {
     expect(
       toPageRelativeRectangle(
@@ -50,11 +60,13 @@ describe('PDF word geometry tokenization', () => {
 
   it('finds the smallest word in the nearby spatial row', () => {
     const largerTarget = {
+      context: 'The world championship began.',
       id: '1-0-0',
       rectangles: [{ height: 20, left: 10, top: 40, width: 100 }],
       word: 'world',
     };
     const smallerTarget = {
+      context: 'The world championship began.',
       id: '1-0-6',
       rectangles: [{ height: 20, left: 45, top: 40, width: 30 }],
       word: 'championship',

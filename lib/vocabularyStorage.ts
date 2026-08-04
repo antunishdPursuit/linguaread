@@ -1,4 +1,8 @@
-import type { VocabularyEntry, VocabularyState } from './types';
+import type {
+  LanguageResult,
+  VocabularyEntry,
+  VocabularyState,
+} from './types';
 
 export const VOCABULARY_STORAGE_KEY = 'linguaread-dictionary-v3';
 
@@ -29,6 +33,13 @@ export function createWordOnlyVocabularyEntry(
     sourceWord,
     usageNote: '',
   };
+}
+
+export function toVocabularyEntry(
+  result: LanguageResult,
+): VocabularyEntry {
+  const { confidence: _confidence, ...entry } = result;
+  return entry;
 }
 
 export function saveVocabularyEntry(

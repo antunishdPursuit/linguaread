@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   MOCK_LANGUAGE_RESULTS,
-  toVocabularyEntry,
 } from './mockLanguage';
 import {
   createWordOnlyVocabularyEntry,
@@ -9,6 +8,7 @@ import {
   EMPTY_VOCABULARY_STATE,
   normalizeVocabularyState,
   saveVocabularyEntry,
+  toVocabularyEntry,
 } from './vocabularyStorage';
 
 describe('Dictionary state', () => {

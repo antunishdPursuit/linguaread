@@ -1,6 +1,5 @@
 import type {
   LanguageResult,
-  VocabularyEntry,
 } from './types';
 
 // These records are UI fixtures, not the production B2 candidate source.
@@ -125,9 +124,4 @@ export function languageFixtureForWord(
   sourceWord: string,
 ): LanguageResult | null {
   return RESULTS_BY_WORD.get(sourceWord.toLowerCase()) ?? null;
-}
-
-export function toVocabularyEntry(result: LanguageResult): VocabularyEntry {
-  const { confidence: _confidence, ...entry } = result;
-  return entry;
 }

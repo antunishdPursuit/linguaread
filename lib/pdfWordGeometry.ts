@@ -24,6 +24,7 @@ type SizeLike = {
 };
 
 export type PdfWordTarget = {
+  context: string;
   id: string;
   rectangles: WordHitRectangle[];
   selection?: {
@@ -41,6 +42,7 @@ export type PdfWordSpatialIndex = {
 
 const DEFAULT_SPATIAL_ROW_HEIGHT = 32;
 const WORD_PATTERN = /[A-Za-z]+(?:['\u2019-][A-Za-z]+)*/g;
+const SENTENCE_END_PATTERN = /[.!?]/;
 
 export function tokenizeEnglishWords(value: string): WordToken[] {
   return Array.from(value.matchAll(WORD_PATTERN), (match) => ({
@@ -48,6 +50,39 @@ export function tokenizeEnglishWords(value: string): WordToken[] {
     start: match.index,
     word: match[0],
   }));
+}
+
+export function extractSentenceContext(
+  pageText: string,
+  wordStart: number,
+  maximumLength = 800,
+): string {
+  const safeStart = Math.max(0, Math.min(wordStart, pageText.length));
+  let sentenceStart = safeStart;
+  let sentenceEnd = safeStart;
+
+  while (
+    sentenceStart > 0 &&
+    !SENTENCE_END_PATTERN.test(pageText[sentenceStart - 1])
+  ) {
+    sentenceStart -= 1;
+  }
+  while (
+    sentenceEnd < pageText.length &&
+    !SENTENCE_END_PATTERN.test(pageText[sentenceEnd])
+  ) {
+    sentenceEnd += 1;
+  }
+  if (sentenceEnd < pageText.length) sentenceEnd += 1;
+
+  const sentence = pageText
+    .slice(sentenceStart, sentenceEnd)
+    .trim()
+    .replace(/\s+/g, ' ');
+
+  return sentence.length <= maximumLength
+    ? sentence
+    : sentence.slice(0, maximumLength).trim();
 }
 
 function usableRectangle(rectangle: DOMRect): boolean {
@@ -166,12 +201,26 @@ export function measureTextLayerWords(
     textLayer,
     NodeFilter.SHOW_TEXT,
   );
-  let textNodeIndex = 0;
-  let node = walker.nextNode();
+  const textNodes: Text[] = [];
+  let currentNode = walker.nextNode();
 
-  while (node) {
-    const textNode = node as Text;
+  while (currentNode) {
+    textNodes.push(currentNode as Text);
+    currentNode = walker.nextNode();
+  }
+
+  const nodeOffsets = new Map<Text, number>();
+  let pageText = '';
+  for (const textNode of textNodes) {
+    if (pageText !== '') pageText += ' ';
+    nodeOffsets.set(textNode, pageText.length);
+    pageText += textNode.data;
+  }
+
+  let textNodeIndex = 0;
+  for (const textNode of textNodes) {
     const value = textNode.data;
+    const nodeOffset = nodeOffsets.get(textNode) ?? 0;
 
     for (const token of tokenizeEnglishWords(value)) {
       const range = document.createRange();
@@ -188,6 +237,10 @@ export function measureTextLayerWords(
       if (!rectangles.length) continue;
 
       targets.push({
+        context: extractSentenceContext(
+          pageText,
+          nodeOffset + token.start,
+        ),
         id: `${pageNumber}-${textNodeIndex}-${token.start}`,
         rectangles,
         selection: {
@@ -200,7 +253,6 @@ export function measureTextLayerWords(
     }
 
     textNodeIndex += 1;
-    node = walker.nextNode();
   }
 
   return targets;
