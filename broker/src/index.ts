@@ -236,6 +236,16 @@ async function handleWordHelp(
         return errorResponse('provider_request_rejected', 502, origin);
       }
       if (error.status === 401) {
+        if (error.reason === 'auth_key_unsupported') {
+          return errorResponse(
+            'provider_auth_key_unsupported',
+            502,
+            origin,
+          );
+        }
+        if (error.reason === 'key_blocked') {
+          return errorResponse('provider_key_blocked', 502, origin);
+        }
         return errorResponse('provider_auth_failed', 502, origin);
       }
       if (error.status === 403) {

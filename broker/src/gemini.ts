@@ -66,7 +66,7 @@ function classifyGeminiFailure(
   status: number,
   providerBody: string,
 ): GeminiFailureReason {
-  if (status !== 403) return 'unknown';
+  if (status !== 401 && status !== 403) return 'unknown';
 
   const normalized = providerBody.toLowerCase();
   if (

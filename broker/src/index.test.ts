@@ -321,6 +321,37 @@ describe('Cloudflare language broker', () => {
     },
   );
 
+  it.each([
+    ['Your API key was reported as leaked.', 'provider_key_blocked'],
+    [
+      'ACCESS_TOKEN_TYPE_UNSUPPORTED',
+      'provider_auth_key_unsupported',
+    ],
+  ])(
+    'classifies a 401 provider response without exposing its message',
+    async (providerMessage, expectedError) => {
+      const providerFetch = vi.fn<typeof fetch>().mockResolvedValue(
+        Response.json(
+          { error: { code: 401, message: providerMessage } },
+          { status: 401 },
+        ),
+      );
+
+      const response = await handleRequest(
+        createRequest(),
+        createEnv(),
+        createContext(),
+        { fetch: providerFetch },
+      );
+      const body = await response.text();
+
+      expect(response.status).toBe(502);
+      expect(body).toBe(JSON.stringify({ error: expectedError }));
+      expect(body).not.toContain(providerMessage);
+      expect(body).not.toContain(apiKey);
+    },
+  );
+
   it('returns a safe timeout without exposing the key', async () => {
     const providerFetch = vi.fn<typeof fetch>(
       (_input, options) =>
