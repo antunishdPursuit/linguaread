@@ -43,8 +43,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 type ActiveCard = {
   message?: string;
   result: LanguageResult | null;
-  source?: 'cache' | 'gemini';
-  status: 'error' | 'loading' | 'needs_key' | 'ready';
+  source?: 'broker' | 'cache';
+  status: 'error' | 'loading' | 'ready';
   sourceWord: string;
   target: PdfWordTarget;
   left: number;
@@ -514,12 +514,6 @@ function App() {
     });
   }, []);
 
-  const openGeminiSettings = useCallback(() => {
-    void browser.runtime.openOptionsPage().catch(() => {
-      setError('Chrome could not open Gemini settings. Try again.');
-    });
-  }, []);
-
   const retryActiveWord = useCallback(() => {
     const currentCard = activeCardRef.current;
     if (!currentCard) return;
@@ -924,15 +918,6 @@ function App() {
                   </p>
                 </>
               )}
-              {activeCard.status === 'needs_key' && (
-                <>
-                  <strong>Connect a Gemini test key.</strong>
-                  <p>
-                    LinguaRead needs an active session key before it can create
-                    this word card.
-                  </p>
-                </>
-              )}
               {activeCard.status === 'error' && (
                 <>
                   <strong>Word help is unavailable.</strong>
@@ -942,14 +927,6 @@ function App() {
             </div>
           )}
           <div className="card-actions">
-            {activeCard.status === 'needs_key' && (
-              <button
-                className="card-secondary-button"
-                onClick={openGeminiSettings}
-              >
-                Gemini settings
-              </button>
-            )}
             {activeCard.status === 'error' && (
               <button
                 className="card-secondary-button"

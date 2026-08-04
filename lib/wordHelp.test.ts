@@ -6,7 +6,15 @@ function dependencies(
   overrides: Partial<Parameters<typeof loadWordHelp>[2]> = {},
 ) {
   return {
-    readApiKey: vi.fn().mockResolvedValue('tester-key'),
+    findMatch: vi.fn().mockResolvedValue({
+      headword: 'innovation',
+      translations: [
+        {
+          gloss: 'The introduction of something new.',
+          value: '創新',
+        },
+      ],
+    }),
     readCache: vi.fn().mockResolvedValue(null),
     request: vi.fn().mockResolvedValue(MOCK_LANGUAGE_RESULT),
     writeCache: vi.fn().mockResolvedValue(undefined),
@@ -15,7 +23,7 @@ function dependencies(
 }
 
 describe('word help flow', () => {
-  it('uses a cached result without reading a key or calling Gemini', async () => {
+  it('uses a cached result without loading candidates or calling the broker', async () => {
     const services = dependencies({
       readCache: vi.fn().mockResolvedValue(MOCK_LANGUAGE_RESULT),
     });
@@ -27,13 +35,13 @@ describe('word help flow', () => {
         services,
       ),
     ).resolves.toMatchObject({ source: 'cache', status: 'ready' });
-    expect(services.readApiKey).not.toHaveBeenCalled();
+    expect(services.findMatch).not.toHaveBeenCalled();
     expect(services.request).not.toHaveBeenCalled();
   });
 
-  it('asks for setup without calling Gemini when no session key exists', async () => {
+  it('keeps English unchanged when the local dictionary has no match', async () => {
     const services = dependencies({
-      readApiKey: vi.fn().mockResolvedValue(null),
+      findMatch: vi.fn().mockResolvedValue(null),
     });
 
     await expect(
@@ -42,7 +50,10 @@ describe('word help flow', () => {
         'The company invested in innovation.',
         services,
       ),
-    ).resolves.toEqual({ status: 'needs_key' });
+    ).resolves.toMatchObject({
+      message: expect.stringContaining('local dictionary'),
+      status: 'error',
+    });
     expect(services.request).not.toHaveBeenCalled();
   });
 
@@ -55,7 +66,7 @@ describe('word help flow', () => {
         'The company invested in innovation.',
         services,
       ),
-    ).resolves.toMatchObject({ source: 'gemini', status: 'ready' });
+    ).resolves.toMatchObject({ source: 'broker', status: 'ready' });
     expect(services.request).toHaveBeenCalledTimes(1);
     expect(services.writeCache).toHaveBeenCalledTimes(1);
   });

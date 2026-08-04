@@ -169,16 +169,6 @@ function App() {
     }
   };
 
-  const openGeminiSettings = async () => {
-    setError('');
-    try {
-      await browser.runtime.openOptionsPage();
-      window.close();
-    } catch {
-      setError('LinguaRead could not open Gemini settings. Try again.');
-    }
-  };
-
   return (
     <main className="popup-shell">
       <header>
@@ -232,13 +222,6 @@ function App() {
         </p>
       )}
 
-      <button
-        type="button"
-        className="settings-link"
-        onClick={() => void openGeminiSettings()}
-      >
-        Gemini settings
-      </button>
     </main>
   );
 }

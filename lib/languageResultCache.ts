@@ -1,4 +1,3 @@
-import { parseGeminiLanguageFields } from './geminiLanguage';
 import type { LanguageResult } from './types';
 
 export const LANGUAGE_RESULT_CACHE_STORAGE_KEY =
@@ -18,22 +17,39 @@ function localStorageArea(): LocalStorageArea {
 function parseLanguageResult(value: unknown): LanguageResult | null {
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Record<string, unknown>;
+  const stringFields = [
+    'contextualExample',
+    'definition',
+    'displayWord',
+    'id',
+    'lemma',
+    'mandarin',
+    'pinyin',
+    'shortMeaning',
+    'simplerEnglish',
+    'sourceWord',
+    'usageNote',
+  ] as const;
   if (
-    typeof candidate.id !== 'string' ||
-    typeof candidate.sourceWord !== 'string'
+    !stringFields.every(
+      (field) =>
+        typeof candidate[field] === 'string' &&
+        candidate[field].trim() !== '',
+    ) ||
+    !['keep_english', 'use_mandarin', 'use_synonym'].includes(
+      String(candidate.action),
+    ) ||
+    !['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'unknown'].includes(
+      String(candidate.cefr),
+    ) ||
+    typeof candidate.confidence !== 'number' ||
+    candidate.confidence < 0 ||
+    candidate.confidence > 1
   ) {
     return null;
   }
 
-  try {
-    return {
-      ...parseGeminiLanguageFields(candidate),
-      id: candidate.id,
-      sourceWord: candidate.sourceWord,
-    };
-  } catch {
-    return null;
-  }
+  return candidate as LanguageResult;
 }
 
 function normalizeCache(value: unknown): LanguageResultCache {

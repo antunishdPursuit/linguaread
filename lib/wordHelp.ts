@@ -1,8 +1,8 @@
-import { readGeminiApiKey } from './geminiKeyStorage';
 import {
-  createGeminiLanguageCacheKey,
-  requestGeminiWordHelp,
-} from './geminiLanguage';
+  createLanguageCacheKey,
+  requestBrokerWordHelp,
+} from './brokerLanguage';
+import { findFreeDictMatch, type FreeDictMatch } from './freeDict';
 import {
   readCachedLanguageResult,
   writeCachedLanguageResult,
@@ -16,22 +16,19 @@ const pendingRequests = new Map<string, Promise<LanguageResult>>();
 export type WordHelpOutcome =
   | {
       result: LanguageResult;
-      source: 'cache' | 'gemini';
+      source: 'broker' | 'cache';
       status: 'ready';
     }
   | {
       message: string;
       status: 'error';
-    }
-  | {
-      status: 'needs_key';
     };
 
-type WordHelpDependencies = {
-  readApiKey(): Promise<string | null>;
+export type WordHelpDependencies = {
+  findMatch(sourceWord: string): Promise<FreeDictMatch | null>;
   readCache(cacheKey: string): Promise<LanguageResult | null>;
   request(request: {
-    apiKey: string;
+    match: FreeDictMatch;
     sentenceContext: string;
     signal?: AbortSignal;
     sourceWord: string;
@@ -40,15 +37,15 @@ type WordHelpDependencies = {
 };
 
 const defaultDependencies: WordHelpDependencies = {
-  readApiKey: readGeminiApiKey,
+  findMatch: findFreeDictMatch,
   readCache: readCachedLanguageResult,
-  request: requestGeminiWordHelp,
+  request: requestBrokerWordHelp,
   writeCache: writeCachedLanguageResult,
 };
 
 async function requestOnce(
   cacheKey: string,
-  apiKey: string,
+  match: FreeDictMatch,
   sourceWord: string,
   sentenceContext: string,
   dependencies: WordHelpDependencies,
@@ -63,7 +60,7 @@ async function requestOnce(
   );
   const request = dependencies
     .request({
-      apiKey,
+      match,
       sentenceContext,
       signal: controller.signal,
       sourceWord,
@@ -89,7 +86,7 @@ export async function loadWordHelp(
   sentenceContext: string,
   dependencies: WordHelpDependencies = defaultDependencies,
 ): Promise<WordHelpOutcome> {
-  const cacheKey = createGeminiLanguageCacheKey(
+  const cacheKey = createLanguageCacheKey(
     sourceWord,
     sentenceContext,
   );
@@ -101,18 +98,24 @@ export async function loadWordHelp(
     return { result: cached, source: 'cache', status: 'ready' };
   }
 
-  const apiKey = await dependencies.readApiKey().catch(() => null);
-  if (!apiKey) return { status: 'needs_key' };
+  const match = await dependencies.findMatch(sourceWord).catch(() => null);
+  if (!match) {
+    return {
+      message:
+        'Chinese translation is unavailable in the local dictionary. The original English stays unchanged.',
+      status: 'error',
+    };
+  }
 
   try {
     const result = await requestOnce(
       cacheKey,
-      apiKey,
+      match,
       sourceWord,
       sentenceContext,
       dependencies,
     );
-    return { result, source: 'gemini', status: 'ready' };
+    return { result, source: 'broker', status: 'ready' };
   } catch {
     return {
       message:
