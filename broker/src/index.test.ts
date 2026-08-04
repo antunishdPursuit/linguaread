@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { handleRequest } from './index';
 
-const allowedOrigin = 'chrome-extension://abcdefghijklmnop';
+const allowedOrigin =
+  'chrome-extension://abcdefghijklmnopabcdefghijklmnop';
+const storeOrigin =
+  'chrome-extension://ponmlkjihgfedcbaponmlkjihgfedcba';
 const apiKey = 'private-server-key';
 
 const validRequest = {
@@ -192,6 +195,42 @@ describe('Cloudflare language broker', () => {
     );
 
     expect(response.status).toBe(403);
+    expect(providerFetch).not.toHaveBeenCalled();
+  });
+
+  it('accepts every exact extension origin in the configured allowlist', async () => {
+    const providerFetch = successfulProvider();
+    const env = {
+      ...createEnv(),
+      ALLOWED_ORIGINS: `${allowedOrigin}, ${storeOrigin}`,
+      ALLOWED_ORIGIN: undefined,
+    };
+    const response = await handleRequest(
+      createRequest(validRequest, { origin: storeOrigin }),
+      env,
+      createContext(),
+      { fetch: providerFetch },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
+      storeOrigin,
+    );
+  });
+
+  it('fails closed when the origin allowlist contains a wildcard', async () => {
+    const providerFetch = successfulProvider();
+    const response = await handleRequest(
+      createRequest(),
+      {
+        ...createEnv(),
+        ALLOWED_ORIGIN: 'chrome-extension://*',
+      },
+      createContext(),
+      { fetch: providerFetch },
+    );
+
+    expect(response.status).toBe(503);
     expect(providerFetch).not.toHaveBeenCalled();
   });
 

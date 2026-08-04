@@ -5,7 +5,7 @@
   "compatibility_date": "2026-08-04",
   "workers_dev": true,
   "vars": {
-    "ALLOWED_ORIGIN": "chrome-extension://gamafmmbahlngeohnckiafmpmmgodggk"
+    "ALLOWED_ORIGINS": "chrome-extension://gamafmmbahlngeohnckiafmpmmgodggk"
   },
   "secrets": {
     "required": [

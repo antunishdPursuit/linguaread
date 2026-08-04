@@ -21,7 +21,8 @@ type RateLimiter = {
 };
 
 type WorkerEnv = {
-  ALLOWED_ORIGIN: string;
+  ALLOWED_ORIGIN?: string;
+  ALLOWED_ORIGINS?: string;
   GEMINI_API_KEY: string;
   RATE_LIMITER: RateLimiter;
 };
@@ -77,20 +78,28 @@ function resolveDefaultCache(): CacheLike | undefined {
   return cacheStorage?.default;
 }
 
-function isConfiguredOrigin(origin: string): boolean {
-  return (
-    origin.startsWith('chrome-extension://') &&
-    !origin.includes('replace-before-deploy')
-  );
-}
+function configuredOrigins(env: WorkerEnv): Set<string> {
+  const origins = [env.ALLOWED_ORIGIN, env.ALLOWED_ORIGINS]
+    .filter((value): value is string => typeof value === 'string')
+    .flatMap((value) => value.split(','))
+    .map((value) => value.trim())
+    .filter(Boolean);
 
-function requireAllowedOrigin(request: Request, env: WorkerEnv): string {
-  if (!isConfiguredOrigin(env.ALLOWED_ORIGIN)) {
+  if (
+    origins.length === 0 ||
+    origins.some(
+      (origin) => !/^chrome-extension:\/\/[a-p]{32}$/.test(origin),
+    )
+  ) {
     throw new Error('server_not_configured');
   }
 
+  return new Set(origins);
+}
+
+function requireAllowedOrigin(request: Request, env: WorkerEnv): string {
   const origin = request.headers.get('Origin');
-  if (origin !== env.ALLOWED_ORIGIN) {
+  if (!origin || !configuredOrigins(env).has(origin)) {
     throw new Error('origin_not_allowed');
   }
 
