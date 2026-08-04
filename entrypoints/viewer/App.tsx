@@ -635,6 +635,10 @@ function App() {
       }
 
       if (event.detail === 1 && activeCardRef.current) {
+        // Keep an uncached first request visible until it resolves. A new
+        // double-click can still replace it, and the card's close button
+        // remains available when the student intentionally cancels.
+        if (activeCardRef.current.status === 'loading') return;
         closeActiveCard();
       }
     };
@@ -860,6 +864,8 @@ function App() {
           className="word-card"
           style={{ left: activeCard.left, top: activeCard.top }}
           role="dialog"
+          aria-busy={activeCard.status === 'loading'}
+          aria-live="polite"
           aria-label={`${activeCard.sourceWord} word help`}
         >
           <button
