@@ -11,3 +11,8 @@ coverage/
 *.log
 local-fixtures/
 *.pdf
+
+# Raw dictionary sources are verified build inputs, never extension assets.
+ecdict.csv
+stardict.csv
+stardict.7z

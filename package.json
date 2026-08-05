@@ -10,6 +10,7 @@
     "broker:check": "wrangler deploy --dry-run",
     "broker:dev": "wrangler dev",
     "compile": "tsc --noEmit",
+    "dictionary:ecdict": "python scripts/build_ecdict.py",
     "test": "vitest run",
     "test:watch": "vitest",
     "zip": "wxt zip",
