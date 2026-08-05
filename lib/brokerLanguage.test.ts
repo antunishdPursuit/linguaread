@@ -10,6 +10,8 @@ const match = {
   translations: [
     {
       gloss: 'The introduction of something new.',
+      headword: 'innovation',
+      lookup: 'exact' as const,
       source: 'freedict' as const,
       value: '創新',
     },
@@ -28,6 +30,8 @@ describe('language broker client', () => {
     const candidates = createBrokerCandidates(
       Array.from({ length: 16 }, (_, index) => ({
         gloss: `Meaning ${index}`,
+        headword: 'example',
+        lookup: 'exact' as const,
         source: index % 2 === 0 ? ('freedict' as const) : ('ecdict' as const),
         value: `翻譯${index}`,
       })),

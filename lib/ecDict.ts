@@ -1,12 +1,19 @@
-import {
-  createHeadwordCandidates,
-  type FreeDictMatch,
-  type FreeDictTranslation,
-} from './freeDict';
 import { loadCachedDictionaryShard } from './dictionaryShard';
+import { normalizeLookupWord } from './dictionaryLookup';
+import type {
+  FreeDictMatch,
+  FreeDictTranslation,
+} from './freeDict';
 
 type EcDictEntry = [gloss: string, values: string[]];
-type EcDictShard = Record<string, EcDictEntry>;
+type EcDictEntries = Record<string, EcDictEntry>;
+type EcDictLemmas = Record<string, string>;
+type EcDictShard = [entries: EcDictEntries, lemmas: EcDictLemmas];
+
+export type EcDictLookup = {
+  lemma: string | null;
+  match: FreeDictMatch | null;
+};
 
 type EcDictDependencies = {
   fetch(input: string): Promise<Response>;
@@ -21,26 +28,45 @@ const defaultDependencies: EcDictDependencies = {
 };
 
 function parseShard(value: unknown): EcDictShard {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  if (!Array.isArray(value) || value.length !== 2) return [{}, {}];
+  const [rawEntries, rawLemmas] = value;
+  if (
+    !rawEntries ||
+    typeof rawEntries !== 'object' ||
+    Array.isArray(rawEntries) ||
+    !rawLemmas ||
+    typeof rawLemmas !== 'object' ||
+    Array.isArray(rawLemmas)
+  ) {
+    return [{}, {}];
+  }
 
-  return Object.fromEntries(
-    Object.entries(value).flatMap(([headword, entry]) => {
-      if (
-        !Array.isArray(entry) ||
-        entry.length !== 2 ||
-        typeof entry[0] !== 'string' ||
-        !Array.isArray(entry[1])
-      ) {
-        return [];
-      }
+  const entries: EcDictEntries = {};
+  for (const [headword, entry] of Object.entries(rawEntries)) {
+    if (
+      !Array.isArray(entry) ||
+      entry.length !== 2 ||
+      typeof entry[0] !== 'string' ||
+      !Array.isArray(entry[1])
+    ) {
+      continue;
+    }
 
-      const values = entry[1].filter(
-        (candidate): candidate is string =>
-          typeof candidate === 'string' && candidate.trim() !== '',
-      );
-      return values.length > 0 ? [[headword, [entry[0], values]]] : [];
-    }),
+    const values = entry[1].filter(
+      (candidate): candidate is string =>
+        typeof candidate === 'string' && candidate.trim() !== '',
+    );
+    if (values.length > 0) {
+      entries[headword] = [entry[0], values];
+    }
+  }
+  const lemmas = Object.fromEntries(
+    Object.entries(rawLemmas).filter(
+      (entry): entry is [string, string] =>
+        typeof entry[1] === 'string' && entry[1].trim() !== '',
+    ),
   );
+  return [entries, lemmas];
 }
 
 function getShardName(headword: string): string {
@@ -63,24 +89,40 @@ async function loadShard(
   });
 }
 
+export async function findEcDictLookup(
+  sourceWord: string,
+  dependencies: EcDictDependencies = defaultDependencies,
+): Promise<EcDictLookup> {
+  const headword = normalizeLookupWord(sourceWord);
+  if (!headword) return { lemma: null, match: null };
+
+  const [entries, lemmas] = await loadShard(
+    getShardName(headword),
+    dependencies,
+  );
+  const entry = entries[headword];
+  const match = entry
+    ? {
+        headword,
+        translations: entry[1].map(
+          (value): FreeDictTranslation => ({
+            gloss: entry[0],
+            value,
+          }),
+        ),
+      }
+    : null;
+  return {
+    lemma: lemmas[headword] ?? null,
+    match,
+  };
+}
+
 export async function findEcDictMatch(
   sourceWord: string,
   dependencies: EcDictDependencies = defaultDependencies,
 ): Promise<FreeDictMatch | null> {
-  for (const headword of createHeadwordCandidates(sourceWord)) {
-    const shard = await loadShard(getShardName(headword), dependencies);
-    const entry = shard[headword];
-    if (!entry) continue;
-
-    const [gloss, values] = entry;
-    const translations: FreeDictTranslation[] = values.map((value) => ({
-      gloss,
-      value,
-    }));
-    return { headword, translations };
-  }
-
-  return null;
+  return (await findEcDictLookup(sourceWord, dependencies)).match;
 }
 
 export function clearEcDictShardCacheForTests(): void {

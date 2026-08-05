@@ -1,9 +1,15 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
-async function readShard(name: string): Promise<Record<string, unknown>> {
+type EcDictEntry = [definition: string, translations: string[]];
+type EcDictShard = [
+  entries: Record<string, EcDictEntry>,
+  lemmas: Record<string, string>,
+];
+
+async function readShard(name: string): Promise<EcDictShard> {
   const url = new URL(`../public/data/ecdict/${name}.json`, import.meta.url);
-  return JSON.parse(await readFile(url, 'utf-8')) as Record<string, unknown>;
+  return JSON.parse(await readFile(url, 'utf-8')) as EcDictShard;
 }
 
 describe('packaged ECDICT assets', () => {
@@ -13,11 +19,11 @@ describe('packaged ECDICT assets', () => {
       readShard('wi'),
     ]);
 
-    expect(furtherShard.further).toEqual([
+    expect(furtherShard[0].further).toEqual([
       expect.any(String),
       expect.arrayContaining(['更进一步地']),
     ]);
-    expect(withoutShard.without).toEqual([
+    expect(withoutShard[0].without).toEqual([
       expect.any(String),
       expect.arrayContaining(['没有', '不', '在...之外']),
     ]);

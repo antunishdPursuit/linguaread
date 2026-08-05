@@ -36,6 +36,7 @@ PART_OF_SPEECH_PREFIX = re.compile(
     r"^(?:a|adj|adv|art|aux|conj|int|n|num|prep|pron|v|vi|vt)\.\s*",
     re.IGNORECASE,
 )
+DOMAIN_PREFIX = re.compile(r"^\[[^\]]+\]\s*")
 TRANSLATION_SEPARATOR = re.compile(r"[,，;；]")
 
 
@@ -71,8 +72,9 @@ def clean_translation_values(value: str) -> list[str]:
     results: list[str] = []
     for line in value.replace("\\n", "\n").splitlines():
         line = normalize_text(line)
-        if not line or line.startswith("["):
+        if not line:
             continue
+        line = DOMAIN_PREFIX.sub("", line)
         line = PART_OF_SPEECH_PREFIX.sub("", line)
         for candidate in TRANSLATION_SEPARATOR.split(line):
             candidate = candidate.strip(" .")
@@ -87,11 +89,34 @@ def clean_translation_values(value: str) -> list[str]:
     return results
 
 
-def parse_dictionary(csv_path: Path) -> dict[str, tuple[str, list[str]]]:
+def exchange_lemma(value: str) -> str:
+    for item in value.split("/"):
+        if item.startswith("0:"):
+            return normalize_headword(item[2:])
+    return ""
+
+
+def parse_dictionary(
+    csv_path: Path,
+) -> tuple[
+    dict[str, tuple[str, list[str]]],
+    dict[str, str],
+]:
     entries: dict[str, tuple[str, list[str]]] = {}
+    possible_lemmas: dict[str, str] = {}
     with csv_path.open(encoding="utf-8-sig", newline="") as source:
         for row in csv.DictReader(source):
             headword = normalize_headword(row["word"])
+            lemma = exchange_lemma(row["exchange"])
+            if (
+                headword
+                and lemma
+                and headword != lemma
+                and not any(character.isspace() for character in headword)
+                and not any(character.isspace() for character in lemma)
+            ):
+                possible_lemmas[headword] = lemma
+
             # The PDF interaction layer selects one token at a time, so phrase
             # headwords can never be requested by the extension.
             if (
@@ -109,23 +134,41 @@ def parse_dictionary(csv_path: Path) -> dict[str, tuple[str, list[str]]]:
             gloss = gloss[:MAX_GLOSS_LENGTH].rstrip()
             entries[headword] = (gloss, values)
 
-    return entries
+    # Retain only mappings that lead to a translation-bearing packaged entry.
+    # This also covers unranked inflected forms such as "went" without storing
+    # their large duplicate definitions.
+    lemmas = {
+        word: lemma
+        for word, lemma in possible_lemmas.items()
+        if lemma in entries
+    }
+    return entries, lemmas
 
 
-def write_shards(entries: dict[str, tuple[str, list[str]]]) -> None:
+def write_shards(
+    entries: dict[str, tuple[str, list[str]]],
+    lemmas: dict[str, str],
+) -> None:
     if OUTPUT_DIRECTORY.exists():
         shutil.rmtree(OUTPUT_DIRECTORY)
     OUTPUT_DIRECTORY.mkdir(parents=True)
 
     # Store one gloss beside a value list so it is not repeated for every sense.
-    shards: dict[str, dict[str, tuple[str, list[str]]]] = defaultdict(dict)
+    entry_shards: dict[
+        str,
+        dict[str, tuple[str, list[str]]],
+    ] = defaultdict(dict)
+    lemma_shards: dict[str, dict[str, str]] = defaultdict(dict)
     for headword, translations in sorted(entries.items()):
-        shards[shard_name(headword)][headword] = translations
+        entry_shards[shard_name(headword)][headword] = translations
+    for word, lemma in sorted(lemmas.items()):
+        lemma_shards[shard_name(word)][word] = lemma
 
-    for name, shard in sorted(shards.items()):
+    shard_names = sorted(set(entry_shards) | set(lemma_shards))
+    for name in shard_names:
         (OUTPUT_DIRECTORY / f"{name}.json").write_text(
             json.dumps(
-                shard,
+                [entry_shards[name], lemma_shards[name]],
                 ensure_ascii=False,
                 separators=(",", ":"),
                 sort_keys=True,
@@ -136,6 +179,7 @@ def write_shards(entries: dict[str, tuple[str, list[str]]]) -> None:
     manifest = {
         "dictionary": "ECDICT English-Chinese",
         "entryCount": len(entries),
+        "lemmaMappingCount": len(lemmas),
         "license": "MIT",
         "selection": (
             "Translated entries with a BNC or contemporary frequency rank, "
@@ -145,7 +189,8 @@ def write_shards(entries: dict[str, tuple[str, list[str]]]) -> None:
         "sourceCommit": SOURCE_COMMIT,
         "source": CSV_URL,
         "sourceSha256": EXPECTED_SHA256,
-        "shards": sorted(shards),
+        "schemaVersion": 2,
+        "shards": shard_names,
     }
     (OUTPUT_DIRECTORY / "manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
@@ -180,14 +225,15 @@ def main() -> None:
         else:
             download_verified_csv(csv_path)
 
-        entries = parse_dictionary(csv_path)
-        write_shards(entries)
+        entries, lemmas = parse_dictionary(csv_path)
+        write_shards(entries, lemmas)
 
         LICENSE_DIRECTORY.mkdir(parents=True, exist_ok=True)
         copy_license(LICENSE_DIRECTORY / "ECDICT-LICENSE.txt")
 
     print(
-        f"Generated {len(entries):,} ECDICT entries in "
+        f"Generated {len(entries):,} ECDICT entries and "
+        f"{len(lemmas):,} lemma mappings in "
         f"{OUTPUT_DIRECTORY.relative_to(PROJECT_ROOT)}."
     )
 

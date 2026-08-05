@@ -1,3 +1,6 @@
+import { loadCachedDictionaryShard } from './dictionaryShard';
+import { normalizeLookupWord } from './dictionaryLookup';
+
 export type FreeDictTranslation = {
   gloss: string;
   value: string;
@@ -17,85 +20,11 @@ type FreeDictDependencies = {
 };
 
 const shardCache = new Map<string, Promise<FreeDictShard>>();
-const IRREGULAR_FORMS: Record<string, string> = {
-  better: 'good',
-  best: 'good',
-  children: 'child',
-  feet: 'foot',
-  men: 'man',
-  people: 'person',
-  teeth: 'tooth',
-  went: 'go',
-  women: 'woman',
-  worse: 'bad',
-  worst: 'bad',
-};
 
 const defaultDependencies: FreeDictDependencies = {
   fetch: (input) => fetch(input),
   getAssetUrl: (path) => chrome.runtime.getURL(path),
 };
-
-function normalizeWord(value: string): string {
-  return value
-    .normalize('NFKC')
-    .toLocaleLowerCase('en-US')
-    .replace(/^[^a-z]+|[^a-z]+$/g, '');
-}
-
-function addCandidate(candidates: string[], value: string): void {
-  if (value.length > 1 && !candidates.includes(value)) {
-    candidates.push(value);
-  }
-}
-
-export function createHeadwordCandidates(sourceWord: string): string[] {
-  const word = normalizeWord(sourceWord);
-  if (!word) return [];
-
-  const candidates = [word];
-  const irregular = IRREGULAR_FORMS[word];
-  if (irregular) addCandidate(candidates, irregular);
-
-  if (word.endsWith('ies') && word.length > 4) {
-    addCandidate(candidates, `${word.slice(0, -3)}y`);
-  }
-  if (word.endsWith('ied') && word.length > 4) {
-    addCandidate(candidates, `${word.slice(0, -3)}y`);
-  }
-  if (word.endsWith('ing') && word.length > 5) {
-    const stem = word.slice(0, -3);
-    addCandidate(candidates, stem);
-    addCandidate(candidates, `${stem}e`);
-    if (stem.at(-1) === stem.at(-2)) {
-      addCandidate(candidates, stem.slice(0, -1));
-    }
-  }
-  if (word.endsWith('ed') && word.length > 4) {
-    const stem = word.slice(0, -2);
-    addCandidate(candidates, stem);
-    addCandidate(candidates, `${stem}e`);
-    if (stem.at(-1) === stem.at(-2)) {
-      addCandidate(candidates, stem.slice(0, -1));
-    }
-  }
-  if (word.endsWith('es') && word.length > 4) {
-    addCandidate(candidates, word.slice(0, -2));
-    addCandidate(candidates, word.slice(0, -1));
-  } else if (word.endsWith('s') && word.length > 3) {
-    addCandidate(candidates, word.slice(0, -1));
-  }
-  if (word.endsWith('er') && word.length > 4) {
-    addCandidate(candidates, word.slice(0, -2));
-    addCandidate(candidates, `${word.slice(0, -1)}e`);
-  }
-  if (word.endsWith('est') && word.length > 5) {
-    addCandidate(candidates, word.slice(0, -3));
-    addCandidate(candidates, `${word.slice(0, -2)}e`);
-  }
-
-  return candidates;
-}
 
 function parseShard(value: unknown): FreeDictShard {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -134,18 +63,18 @@ export async function findFreeDictMatch(
   sourceWord: string,
   dependencies: FreeDictDependencies = defaultDependencies,
 ): Promise<FreeDictMatch | null> {
-  for (const headword of createHeadwordCandidates(sourceWord)) {
-    const first = headword[0];
-    const shardName =
-      first && first >= 'a' && first <= 'z' ? first : '_';
-    const shard = await loadShard(shardName, dependencies);
-    const entry = shard[headword];
-    if (entry?.length) {
-      return {
-        headword,
-        translations: entry.map(([gloss, value]) => ({ gloss, value })),
-      };
-    }
+  const headword = normalizeLookupWord(sourceWord);
+  if (!headword) return null;
+
+  const first = headword[0];
+  const shardName = first && first >= 'a' && first <= 'z' ? first : '_';
+  const shard = await loadShard(shardName, dependencies);
+  const entry = shard[headword];
+  if (entry?.length) {
+    return {
+      headword,
+      translations: entry.map(([gloss, value]) => ({ gloss, value })),
+    };
   }
 
   return null;
@@ -154,4 +83,3 @@ export async function findFreeDictMatch(
 export function clearFreeDictShardCacheForTests(): void {
   shardCache.clear();
 }
-import { loadCachedDictionaryShard } from './dictionaryShard';

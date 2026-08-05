@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { normalizeLookupWord } from './dictionaryLookup';
 import {
   clearFreeDictShardCacheForTests,
-  createHeadwordCandidates,
   findFreeDictMatch,
 } from './freeDict';
 
@@ -10,34 +10,40 @@ beforeEach(() => {
 });
 
 describe('FreeDict lookup', () => {
-  it('creates conservative lookup forms for common inflections', () => {
-    expect(createHeadwordCandidates('Controlled')).toContain('control');
-    expect(createHeadwordCandidates('producing')).toContain('produce');
-    expect(createHeadwordCandidates('attributed')).toContain('attribute');
-    expect(createHeadwordCandidates('Innovation')).toEqual(['innovation']);
+  it('normalizes formatting without changing the selected word form', () => {
+    expect(normalizeLookupWord(' Controlled, ')).toBe('controlled');
+    expect(normalizeLookupWord('Pursuing')).toBe('pursuing');
   });
 
-  it('returns the first available normalized headword', async () => {
-    const fetch = vi.fn(async () =>
-      new Response(
-        JSON.stringify({
-          control: [['To exercise influence over.', '控制']],
-        }),
-      ),
-    );
-
+  it('returns only the exact normalized headword', async () => {
     await expect(
-      findFreeDictMatch('controlled', {
-        fetch,
+      findFreeDictMatch('Controlled,', {
+        fetch: async () =>
+          new Response(
+            JSON.stringify({
+              controlled: [['Kept within limits.', '受控的']],
+            }),
+          ),
         getAssetUrl: (path) => `extension://${path}`,
       }),
     ).resolves.toEqual({
-      headword: 'control',
-      translations: [
-        { gloss: 'To exercise influence over.', value: '控制' },
-      ],
+      headword: 'controlled',
+      translations: [{ gloss: 'Kept within limits.', value: '受控的' }],
     });
-    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it('does not invent a base form when the exact headword is absent', async () => {
+    await expect(
+      findFreeDictMatch('controlled', {
+        fetch: async () =>
+          new Response(
+            JSON.stringify({
+              control: [['To exercise influence over.', '控制']],
+            }),
+          ),
+        getAssetUrl: (path) => `extension://${path}`,
+      }),
+    ).resolves.toBeNull();
   });
 
   it('returns null when the local dictionary has no candidate', async () => {
