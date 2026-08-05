@@ -10,6 +10,7 @@ const match = {
   translations: [
     {
       gloss: 'The introduction of something new.',
+      source: 'freedict' as const,
       value: '創新',
     },
   ],
@@ -25,12 +26,13 @@ function storage() {
 describe('language broker client', () => {
   it('bounds local candidates for the broker contract', () => {
     const candidates = createBrokerCandidates(
-      Array.from({ length: 12 }, (_, index) => ({
+      Array.from({ length: 16 }, (_, index) => ({
         gloss: `Meaning ${index}`,
+        source: index % 2 === 0 ? ('freedict' as const) : ('ecdict' as const),
         value: `翻譯${index}`,
       })),
     );
-    expect(candidates).toHaveLength(8);
+    expect(candidates).toHaveLength(12);
     expect(candidates[0]).toEqual({
       gloss: 'Meaning 0',
       id: 'freedict:0',

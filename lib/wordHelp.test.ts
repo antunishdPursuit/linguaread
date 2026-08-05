@@ -11,6 +11,7 @@ function dependencies(
       translations: [
         {
           gloss: 'The introduction of something new.',
+          source: 'freedict',
           value: '創新',
         },
       ],
@@ -51,7 +52,7 @@ describe('word help flow', () => {
         services,
       ),
     ).resolves.toMatchObject({
-      message: expect.stringContaining('local dictionary'),
+      message: expect.stringContaining('local dictionaries'),
       status: 'error',
     });
     expect(services.request).not.toHaveBeenCalled();

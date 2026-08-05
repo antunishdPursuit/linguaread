@@ -2,11 +2,14 @@ import {
   createLanguageCacheKey,
   requestBrokerWordHelp,
 } from './brokerLanguage';
-import { findFreeDictMatch, type FreeDictMatch } from './freeDict';
 import {
   readCachedLanguageResult,
   writeCachedLanguageResult,
 } from './languageResultCache';
+import {
+  findLocalDictionaryMatch,
+  type LocalDictionaryMatch,
+} from './localDictionary';
 import type { LanguageResult } from './types';
 
 const MINIMUM_CONFIDENCE = 0.7;
@@ -25,10 +28,10 @@ export type WordHelpOutcome =
     };
 
 export type WordHelpDependencies = {
-  findMatch(sourceWord: string): Promise<FreeDictMatch | null>;
+  findMatch(sourceWord: string): Promise<LocalDictionaryMatch | null>;
   readCache(cacheKey: string): Promise<LanguageResult | null>;
   request(request: {
-    match: FreeDictMatch;
+    match: LocalDictionaryMatch;
     sentenceContext: string;
     signal?: AbortSignal;
     sourceWord: string;
@@ -37,7 +40,7 @@ export type WordHelpDependencies = {
 };
 
 const defaultDependencies: WordHelpDependencies = {
-  findMatch: findFreeDictMatch,
+  findMatch: findLocalDictionaryMatch,
   readCache: readCachedLanguageResult,
   request: requestBrokerWordHelp,
   writeCache: writeCachedLanguageResult,
@@ -45,7 +48,7 @@ const defaultDependencies: WordHelpDependencies = {
 
 async function requestOnce(
   cacheKey: string,
-  match: FreeDictMatch,
+  match: LocalDictionaryMatch,
   sourceWord: string,
   sentenceContext: string,
   dependencies: WordHelpDependencies,
@@ -102,7 +105,7 @@ export async function loadWordHelp(
   if (!match) {
     return {
       message:
-        'Chinese translation is unavailable in the local dictionary. The original English stays unchanged.',
+        'Chinese translation is unavailable in the local dictionaries. The original English stays unchanged.',
       status: 'error',
     };
   }

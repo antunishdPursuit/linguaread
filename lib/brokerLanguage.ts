@@ -1,5 +1,8 @@
 import { pinyin } from 'pinyin-pro';
-import type { FreeDictMatch, FreeDictTranslation } from './freeDict';
+import type {
+  LocalDictionaryMatch,
+  LocalDictionaryTranslation,
+} from './localDictionary';
 import type { LanguageResult } from './types';
 
 export const LANGUAGE_BROKER_URL =
@@ -9,7 +12,7 @@ export const LANGUAGE_BROKER_PROMPT_VERSION = 'candidate-selector-v1';
 export const LANGUAGE_BROKER_CLIENT_STORAGE_KEY =
   'linguaread-broker-client-v1';
 
-const MAX_CANDIDATES = 8;
+const MAX_CANDIDATES = 12;
 
 export type BrokerCandidate = {
   gloss: string;
@@ -38,7 +41,7 @@ type StorageArea = {
 };
 
 export type BrokerLanguageRequest = {
-  match: FreeDictMatch;
+  match: LocalDictionaryMatch;
   sentenceContext: string;
   signal?: AbortSignal;
   sourceWord: string;
@@ -74,21 +77,21 @@ export function createLanguageCacheKey(
   const normalized = [
     LANGUAGE_BROKER_MODEL,
     LANGUAGE_BROKER_PROMPT_VERSION,
-    'freedict-2025.11.23',
+    'freedict-2025.11.23+ecdict-bc015ed-ranked-v1',
     'B2',
     sourceWord.trim().toLocaleLowerCase('en-US'),
     sentenceContext.trim().replace(/\s+/g, ' '),
   ].join('|');
 
-  return `word-help:v2:${stableHash(normalized)}`;
+  return `word-help:v3:${stableHash(normalized)}`;
 }
 
 export function createBrokerCandidates(
-  translations: readonly FreeDictTranslation[],
+  translations: readonly LocalDictionaryTranslation[],
 ): BrokerCandidate[] {
   return translations.slice(0, MAX_CANDIDATES).map((translation, index) => ({
     gloss: translation.gloss.slice(0, 240),
-    id: `freedict:${index}`,
+    id: `${translation.source}:${index}`,
     kind: 'mandarin',
     value: translation.value.slice(0, 80),
   }));
