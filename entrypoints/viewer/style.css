@@ -758,13 +758,6 @@ button:focus-visible,
     min-height: 500px;
   }
 
-  .word-card {
-    right: 16px !important;
-    bottom: 16px;
-    left: 16px !important;
-    top: auto !important;
-    width: auto;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

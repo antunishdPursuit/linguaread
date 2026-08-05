@@ -58,6 +58,16 @@ describe('PDF word geometry tokenization', () => {
     ).toEqual({ left: 268, top: 288 });
   });
 
+  it('keeps a floating card vertically attached in a narrow viewport', () => {
+    expect(
+      positionFloatingCard(
+        { height: 20, left: 300, top: 420, width: 70 },
+        { height: 260, width: 340 },
+        { height: 800, width: 600 },
+      ),
+    ).toEqual({ left: 16, top: 408 });
+  });
+
   it('finds the smallest word in the nearby spatial row', () => {
     const largerTarget = {
       context: 'The world championship began.',
