@@ -3,9 +3,9 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
-    name: 'LinguaRead',
+    name: 'LinguaRead BETA',
     description:
-      'Read English PDFs with focused Mandarin and simpler-English support.',
+      'THIS EXTENSION IS FOR BETA TESTING. Read English PDFs with focused Mandarin and simpler-English support.',
     minimum_chrome_version: '127',
     permissions: ['activeTab', 'tabs', 'storage', 'sidePanel'],
     host_permissions: [
