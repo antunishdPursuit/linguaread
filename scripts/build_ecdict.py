@@ -92,7 +92,13 @@ def parse_dictionary(csv_path: Path) -> dict[str, tuple[str, list[str]]]:
     with csv_path.open(encoding="utf-8-sig", newline="") as source:
         for row in csv.DictReader(source):
             headword = normalize_headword(row["word"])
-            if not headword or not is_ranked(row):
+            # The PDF interaction layer selects one token at a time, so phrase
+            # headwords can never be requested by the extension.
+            if (
+                not headword
+                or any(character.isspace() for character in headword)
+                or not is_ranked(row)
+            ):
                 continue
 
             values = clean_translation_values(row["translation"])
@@ -133,7 +139,8 @@ def write_shards(entries: dict[str, tuple[str, list[str]]]) -> None:
         "license": "MIT",
         "selection": (
             "Translated entries with a BNC or contemporary frequency rank, "
-            "Oxford marker, Collins marker, or exam tag"
+            "Oxford marker, Collins marker, or exam tag; single-token "
+            "headwords used by the PDF word picker"
         ),
         "sourceCommit": SOURCE_COMMIT,
         "source": CSV_URL,

@@ -8,7 +8,8 @@ export type FreeDictMatch = {
   translations: FreeDictTranslation[];
 };
 
-type FreeDictShard = Record<string, FreeDictTranslation[]>;
+type FreeDictEntry = [gloss: string, value: string];
+type FreeDictShard = Record<string, FreeDictEntry[]>;
 
 type FreeDictDependencies = {
   fetch(input: string): Promise<Response>;
@@ -103,13 +104,11 @@ function parseShard(value: unknown): FreeDictShard {
     Object.entries(value).flatMap(([headword, translations]) => {
       if (!Array.isArray(translations)) return [];
       const valid = translations.filter(
-        (translation): translation is FreeDictTranslation =>
-          Boolean(
-            translation &&
-              typeof translation === 'object' &&
-              typeof (translation as FreeDictTranslation).gloss === 'string' &&
-              typeof (translation as FreeDictTranslation).value === 'string',
-          ),
+        (translation): translation is FreeDictEntry =>
+          Array.isArray(translation) &&
+          translation.length === 2 &&
+          typeof translation[0] === 'string' &&
+          typeof translation[1] === 'string',
       );
       return valid.length > 0 ? [[headword, valid]] : [];
     }),
@@ -120,21 +119,15 @@ async function loadShard(
   name: string,
   dependencies: FreeDictDependencies,
 ): Promise<FreeDictShard> {
-  const existing = shardCache.get(name);
-  if (existing) return existing;
-
-  const request = dependencies
-    .fetch(
-      dependencies.getAssetUrl(`data/freedict/${encodeURIComponent(name)}.json`),
-    )
-    .then(async (response) => {
-      if (!response.ok) return {};
-      return parseShard(await response.json());
-    })
-    .catch(() => ({}));
-
-  shardCache.set(name, request);
-  return request;
+  return loadCachedDictionaryShard({
+    cache: shardCache,
+    fetch: dependencies.fetch,
+    name,
+    parse: parseShard,
+    url: dependencies.getAssetUrl(
+      `data/freedict/${encodeURIComponent(name)}.json`,
+    ),
+  });
 }
 
 export async function findFreeDictMatch(
@@ -146,9 +139,12 @@ export async function findFreeDictMatch(
     const shardName =
       first && first >= 'a' && first <= 'z' ? first : '_';
     const shard = await loadShard(shardName, dependencies);
-    const translations = shard[headword];
-    if (translations?.length) {
-      return { headword, translations };
+    const entry = shard[headword];
+    if (entry?.length) {
+      return {
+        headword,
+        translations: entry.map(([gloss, value]) => ({ gloss, value })),
+      };
     }
   }
 
@@ -158,3 +154,4 @@ export async function findFreeDictMatch(
 export function clearFreeDictShardCacheForTests(): void {
   shardCache.clear();
 }
+import { loadCachedDictionaryShard } from './dictionaryShard';

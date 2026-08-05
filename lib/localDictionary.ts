@@ -28,6 +28,13 @@ const defaultDependencies: LocalDictionaryDependencies = {
   findFreeDictMatch,
 };
 
+export class LocalDictionaryUnavailableError extends Error {
+  constructor(options?: ErrorOptions) {
+    super('Both local dictionary sources are unavailable.', options);
+    this.name = 'LocalDictionaryUnavailableError';
+  }
+}
+
 function candidateIdentity(value: string): string {
   return value.normalize('NFKC').trim().replace(/\s+/g, '');
 }
@@ -78,9 +85,23 @@ export async function findLocalDictionaryMatch(
   sourceWord: string,
   dependencies: LocalDictionaryDependencies = defaultDependencies,
 ): Promise<LocalDictionaryMatch | null> {
-  const [freeDict, ecDict] = await Promise.all([
+  const [freeDictResult, ecDictResult] = await Promise.allSettled([
     dependencies.findFreeDictMatch(sourceWord),
     dependencies.findEcDictMatch(sourceWord),
   ]);
+
+  if (
+    freeDictResult.status === 'rejected' &&
+    ecDictResult.status === 'rejected'
+  ) {
+    throw new LocalDictionaryUnavailableError({
+      cause: [freeDictResult.reason, ecDictResult.reason],
+    });
+  }
+
+  const freeDict =
+    freeDictResult.status === 'fulfilled' ? freeDictResult.value : null;
+  const ecDict =
+    ecDictResult.status === 'fulfilled' ? ecDictResult.value : null;
   return mergeDictionaryMatches(freeDict, ecDict);
 }

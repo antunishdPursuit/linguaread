@@ -1,4 +1,3 @@
-import { pinyin } from 'pinyin-pro';
 import type {
   LocalDictionaryMatch,
   LocalDictionaryTranslation,
@@ -27,12 +26,6 @@ type BrokerSelection = {
   decision: 'keep_english' | 'none_fit' | 'use_candidate';
   reason: string;
   tokenType: 'acronym' | 'common_word' | 'other' | 'proper_name';
-};
-
-type BrokerResponse = {
-  model: string;
-  promptVersion: string;
-  result: BrokerSelection;
 };
 
 type StorageArea = {
@@ -257,6 +250,9 @@ export async function requestBrokerWordHelp(
     selected.id,
     selected.value,
   ].join('|');
+  // Pinyin is needed only after the broker accepts a Mandarin candidate.
+  // Loading it here keeps the normal PDF reader startup bundle smaller.
+  const { pinyin } = await import('pinyin-pro');
 
   return {
     action: 'use_mandarin',

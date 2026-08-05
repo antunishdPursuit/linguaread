@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   findLocalDictionaryMatch,
+  LocalDictionaryUnavailableError,
   mergeDictionaryMatches,
 } from './localDictionary';
 
@@ -53,6 +54,31 @@ describe('local dictionary', () => {
     });
     expect(findFreeDictMatch).toHaveBeenCalledOnce();
     expect(findEcDictMatch).toHaveBeenCalledOnce();
+  });
+
+  it('uses one dictionary when the other source is temporarily unavailable', async () => {
+    await expect(
+      findLocalDictionaryMatch('without', {
+        findEcDictMatch: vi.fn().mockResolvedValue(ecDict),
+        findFreeDictMatch: vi.fn().mockRejectedValue(new Error('unavailable')),
+      }),
+    ).resolves.toMatchObject({
+      headword: 'without',
+      translations: [
+        { source: 'ecdict' },
+        { source: 'ecdict' },
+        { source: 'ecdict' },
+      ],
+    });
+  });
+
+  it('reports unavailability only when both dictionary sources fail', async () => {
+    await expect(
+      findLocalDictionaryMatch('without', {
+        findEcDictMatch: vi.fn().mockRejectedValue(new Error('unavailable')),
+        findFreeDictMatch: vi.fn().mockRejectedValue(new Error('unavailable')),
+      }),
+    ).rejects.toBeInstanceOf(LocalDictionaryUnavailableError);
   });
 
   it('keeps later ECDICT senses inside the twelve-candidate broker limit', () => {

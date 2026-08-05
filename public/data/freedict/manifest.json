@@ -1,8 +1,9 @@
 {
   "dictionary": "FreeDict English-Chinese",
-  "entryCount": 24772,
+  "entryCount": 19657,
   "license": "CC BY-SA 3.0",
   "release": "2025.11.23",
+  "selection": "Single-token English headwords used by the PDF word picker",
   "shards": [
     "_",
     "a",

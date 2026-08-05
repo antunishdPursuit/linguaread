@@ -8,6 +8,7 @@ import {
 } from './languageResultCache';
 import {
   findLocalDictionaryMatch,
+  LocalDictionaryUnavailableError,
   type LocalDictionaryMatch,
 } from './localDictionary';
 import type { LanguageResult } from './types';
@@ -24,6 +25,7 @@ export type WordHelpOutcome =
     }
   | {
       message: string;
+      reason: 'dictionary_unavailable' | 'no_match' | 'provider_error';
       status: 'error';
     };
 
@@ -101,11 +103,24 @@ export async function loadWordHelp(
     return { result: cached, source: 'cache', status: 'ready' };
   }
 
-  const match = await dependencies.findMatch(sourceWord).catch(() => null);
+  let match: LocalDictionaryMatch | null;
+  try {
+    match = await dependencies.findMatch(sourceWord);
+  } catch (error) {
+    return {
+      message:
+        error instanceof LocalDictionaryUnavailableError
+          ? 'LinguaRead could not load its local dictionaries. Try again.'
+          : 'LinguaRead could not check its local dictionaries. Try again.',
+      reason: 'dictionary_unavailable',
+      status: 'error',
+    };
+  }
   if (!match) {
     return {
       message:
         'Chinese translation is unavailable in the local dictionaries. The original English stays unchanged.',
+      reason: 'no_match',
       status: 'error',
     };
   }
@@ -123,6 +138,7 @@ export async function loadWordHelp(
     return {
       message:
         'LinguaRead could not confirm safe word help. The original English stays unchanged.',
+      reason: 'provider_error',
       status: 'error',
     };
   }

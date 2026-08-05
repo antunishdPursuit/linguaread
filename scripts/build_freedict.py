@@ -51,8 +51,8 @@ def download_verified_archive(destination: Path) -> None:
         raise RuntimeError("FreeDict archive checksum did not match.")
 
 
-def parse_dictionary(tei_path: Path) -> dict[str, list[dict[str, str]]]:
-    entries: dict[str, list[dict[str, str]]] = defaultdict(list)
+def parse_dictionary(tei_path: Path) -> dict[str, list[tuple[str, str]]]:
+    entries: dict[str, list[tuple[str, str]]] = defaultdict(list)
 
     for _, element in ET.iterparse(tei_path, events=("end",)):
         if element.tag != "{http://www.tei-c.org/ns/1.0}entry":
@@ -61,7 +61,9 @@ def parse_dictionary(tei_path: Path) -> dict[str, list[dict[str, str]]]:
         headword = normalize_headword(
             element.findtext("./tei:form/tei:orth", "", TEI_NAMESPACE)
         )
-        if not headword:
+        # The PDF interaction layer selects one token at a time, so phrase
+        # headwords can never be requested by the extension.
+        if not headword or any(character.isspace() for character in headword):
             element.clear()
             continue
 
@@ -88,9 +90,7 @@ def parse_dictionary(tei_path: Path) -> dict[str, list[dict[str, str]]]:
             if identity in seen:
                 continue
 
-            entries[headword].append(
-                {"gloss": definition, "value": translation}
-            )
+            entries[headword].append((definition, translation))
             seen.add(identity)
             if len(entries[headword]) >= MAX_TRANSLATIONS_PER_WORD:
                 break
@@ -100,12 +100,13 @@ def parse_dictionary(tei_path: Path) -> dict[str, list[dict[str, str]]]:
     return dict(entries)
 
 
-def write_shards(entries: dict[str, list[dict[str, str]]]) -> None:
+def write_shards(entries: dict[str, list[tuple[str, str]]]) -> None:
     if OUTPUT_DIRECTORY.exists():
         shutil.rmtree(OUTPUT_DIRECTORY)
     OUTPUT_DIRECTORY.mkdir(parents=True)
 
-    shards: dict[str, dict[str, list[dict[str, str]]]] = defaultdict(dict)
+    # Tuples avoid repeating JSON field names for every translation.
+    shards: dict[str, dict[str, list[tuple[str, str]]]] = defaultdict(dict)
     for headword, translations in sorted(entries.items()):
         shards[shard_name(headword)][headword] = translations
 
@@ -126,6 +127,7 @@ def write_shards(entries: dict[str, list[dict[str, str]]]) -> None:
         "entryCount": len(entries),
         "license": "CC BY-SA 3.0",
         "release": VERSION,
+        "selection": "Single-token English headwords used by the PDF word picker",
         "shards": sorted(shards),
         "source": ARCHIVE_URL,
     }

@@ -3,6 +3,7 @@ import {
   type FreeDictMatch,
   type FreeDictTranslation,
 } from './freeDict';
+import { loadCachedDictionaryShard } from './dictionaryShard';
 
 type EcDictEntry = [gloss: string, values: string[]];
 type EcDictShard = Record<string, EcDictEntry>;
@@ -51,21 +52,15 @@ async function loadShard(
   name: string,
   dependencies: EcDictDependencies,
 ): Promise<EcDictShard> {
-  const existing = shardCache.get(name);
-  if (existing) return existing;
-
-  const request = dependencies
-    .fetch(
-      dependencies.getAssetUrl(`data/ecdict/${encodeURIComponent(name)}.json`),
-    )
-    .then(async (response) => {
-      if (!response.ok) return {};
-      return parseShard(await response.json());
-    })
-    .catch(() => ({}));
-
-  shardCache.set(name, request);
-  return request;
+  return loadCachedDictionaryShard({
+    cache: shardCache,
+    fetch: dependencies.fetch,
+    name,
+    parse: parseShard,
+    url: dependencies.getAssetUrl(
+      `data/ecdict/${encodeURIComponent(name)}.json`,
+    ),
+  });
 }
 
 export async function findEcDictMatch(

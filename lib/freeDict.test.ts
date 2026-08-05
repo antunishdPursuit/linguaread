@@ -21,7 +21,7 @@ describe('FreeDict lookup', () => {
     const fetch = vi.fn(async () =>
       new Response(
         JSON.stringify({
-          control: [{ gloss: 'To exercise influence over.', value: '控制' }],
+          control: [['To exercise influence over.', '控制']],
         }),
       ),
     );

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MOCK_LANGUAGE_RESULT } from './mockLanguage';
+import { LocalDictionaryUnavailableError } from './localDictionary';
 import { loadWordHelp } from './wordHelp';
 
 function dependencies(
@@ -53,6 +54,28 @@ describe('word help flow', () => {
       ),
     ).resolves.toMatchObject({
       message: expect.stringContaining('local dictionaries'),
+      reason: 'no_match',
+      status: 'error',
+    });
+    expect(services.request).not.toHaveBeenCalled();
+  });
+
+  it('reports a temporary dictionary failure separately from a missing word', async () => {
+    const services = dependencies({
+      findMatch: vi
+        .fn()
+        .mockRejectedValue(new LocalDictionaryUnavailableError()),
+    });
+
+    await expect(
+      loadWordHelp(
+        'innovation',
+        'The company invested in innovation.',
+        services,
+      ),
+    ).resolves.toMatchObject({
+      message: expect.stringContaining('Try again'),
+      reason: 'dictionary_unavailable',
       status: 'error',
     });
     expect(services.request).not.toHaveBeenCalled();

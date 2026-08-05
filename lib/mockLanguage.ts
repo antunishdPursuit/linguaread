@@ -112,16 +112,3 @@ export const MOCK_LANGUAGE_RESULTS: LanguageResult[] = [
 ];
 
 export const MOCK_LANGUAGE_RESULT = MOCK_LANGUAGE_RESULTS[0];
-
-const RESULTS_BY_WORD = new Map(
-  MOCK_LANGUAGE_RESULTS.map((result) => [
-    result.sourceWord.toLowerCase(),
-    result,
-  ]),
-);
-
-export function languageFixtureForWord(
-  sourceWord: string,
-): LanguageResult | null {
-  return RESULTS_BY_WORD.get(sourceWord.toLowerCase()) ?? null;
-}
