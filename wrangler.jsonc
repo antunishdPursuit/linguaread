@@ -4,6 +4,13 @@
   "main": "broker/src/index.ts",
   "compatibility_date": "2026-08-04",
   "workers_dev": true,
+  "preview_urls": false,
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true
+    }
+  },
   "vars": {
     "ALLOWED_ORIGINS": "chrome-extension://gamafmmbahlngeohnckiafmpmmgodggk,chrome-extension://ginclnkpgbmnjbmlefdkhiokcnplkcjm"
   },
