@@ -24,21 +24,23 @@ The original English stays in the PDF. LinguaRead provides help around the text 
 
 ## Use LinguaRead
 
-LinguaRead is being prepared for release through the Chrome Web Store. Once it is available:
+LinguaRead 0.1.0 is under Chrome Web Store review for private beta testing.
+After Google approves the extension and a tester is added:
 
 1. Install LinguaRead from its Chrome Web Store page.
 2. Open a text-based PDF and select **Open with LinguaRead**.
 3. Double-click a word for the complete word card.
 4. Open the **Dictionary** to review saved words.
 
-The Chrome Web Store link will be added after the extension is approved.
+The private Chrome Web Store link will be added after the extension is
+approved.
 
 ## Current limitations
 
 - LinguaRead currently focuses on English and Mandarin at a fixed B2 reading level.
 - It requires a PDF with selectable text. Scanned image-only PDFs are not supported.
 - Website reading, other language pairs, and selectable A1-C2 levels are planned for later versions.
-- Language suggestions are still being validated before the public release.
+- Language suggestions still require review by Mandarin-speaking testers.
 
 ## Hack Your Summer
 
@@ -50,12 +52,17 @@ The current goal is to test whether focused word help makes academic reading eas
 
 ## Roadmap
 
-- Complete contextual Mandarin and simpler-English word assistance.
+- Complete the private Chrome Web Store review.
 - Validate language choices with Mandarin-speaking reviewers.
 - Test the complete reading flow with international students.
-- Publish LinguaRead through the Chrome Web Store.
+- Refine word assistance from verified tester feedback.
 - Add optional A1-C2 reading levels.
 - Support ordinary websites after the PDF experience is stable.
+
+## Privacy
+
+Read the [LinguaRead Privacy Policy](https://antunishdpursuit.github.io/linguaread-privacy/)
+for the data used by deliberate word-help requests.
 
 ## Contributors and acknowledgments
 
