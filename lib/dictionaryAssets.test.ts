@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -32,6 +32,17 @@ beforeEach(() => {
 });
 
 describe('packaged dictionary assets', () => {
+  it('does not add another extension manifest to the release package', async () => {
+    const publicEntries = await readdir(resolve(process.cwd(), 'public'), {
+      recursive: true,
+    });
+    const nestedManifests = publicEntries.filter(
+      (entry) => entry.toLowerCase().endsWith('manifest.json'),
+    );
+
+    expect(nestedManifests).toEqual([]);
+  });
+
   it.each(['further', 'without', 'terms', 'pursuing'])(
     'keeps a compact single-word candidate for %s',
     async (word) => {

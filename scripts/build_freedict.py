@@ -131,7 +131,7 @@ def write_shards(entries: dict[str, list[tuple[str, str]]]) -> None:
         "shards": sorted(shards),
         "source": ARCHIVE_URL,
     }
-    (OUTPUT_DIRECTORY / "manifest.json").write_text(
+    (OUTPUT_DIRECTORY / "dictionary-metadata.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )

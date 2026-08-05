@@ -192,7 +192,7 @@ def write_shards(
         "schemaVersion": 2,
         "shards": shard_names,
     }
-    (OUTPUT_DIRECTORY / "manifest.json").write_text(
+    (OUTPUT_DIRECTORY / "dictionary-metadata.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
