@@ -15,7 +15,10 @@ import {
   acceptLanguageDisclosure,
   hasAcceptedLanguageDisclosure,
 } from '../../lib/languageDisclosure';
-import { loadWordHelp } from '../../lib/wordHelp';
+import {
+  loadWordHelp,
+  type WordHelpErrorReason,
+} from '../../lib/wordHelp';
 import {
   buildPdfWordSpatialIndex,
   findPdfWordTargetAtPoint,
@@ -45,6 +48,7 @@ import { consumePdfTransfer } from '../../lib/pdfTransfer';
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 type ActiveCard = {
+  errorReason?: WordHelpErrorReason;
   message?: string;
   result: LanguageResult | null;
   source?: 'broker' | 'cache';
@@ -517,6 +521,8 @@ function App() {
               ...currentCard,
               message:
                 outcome.status === 'error' ? outcome.message : undefined,
+              errorReason:
+                outcome.status === 'error' ? outcome.reason : undefined,
               result: null,
               status: outcome.status,
             };
@@ -989,7 +995,11 @@ function App() {
               )}
               {activeCard.status === 'error' && (
                 <>
-                  <strong>Word help is unavailable.</strong>
+                  <strong>
+                    {activeCard.errorReason === 'candidate_rejected'
+                      ? 'No safe translation found.'
+                      : 'Word help is unavailable.'}
+                  </strong>
                   <p>{activeCard.message}</p>
                 </>
               )}

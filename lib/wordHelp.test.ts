@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { BrokerLanguageError } from './brokerLanguage';
 import { MOCK_LANGUAGE_RESULT } from './mockLanguage';
 import { LocalDictionaryUnavailableError } from './localDictionary';
 import { loadWordHelp } from './wordHelp';
@@ -93,6 +94,68 @@ describe('word help flow', () => {
     ).resolves.toMatchObject({ source: 'broker', status: 'ready' });
     expect(services.request).toHaveBeenCalledTimes(1);
     expect(services.writeCache).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries one transient broker failure and caches the recovered result', async () => {
+    const services = dependencies({
+      request: vi
+        .fn()
+        .mockRejectedValueOnce(
+          new BrokerLanguageError('temporary outage', 'request_failed', 503),
+        )
+        .mockResolvedValueOnce(MOCK_LANGUAGE_RESULT),
+    });
+
+    await expect(
+      loadWordHelp(
+        'innovation',
+        'The company invested in innovation.',
+        services,
+      ),
+    ).resolves.toMatchObject({ source: 'broker', status: 'ready' });
+    expect(services.request).toHaveBeenCalledTimes(2);
+    expect(services.writeCache).toHaveBeenCalledOnce();
+  });
+
+  it('shows a distinct message when Gemini rejects every local candidate', async () => {
+    const services = dependencies({
+      request: vi.fn().mockRejectedValue(
+        new BrokerLanguageError(
+          'No supplied translation fit this sentence.',
+          'candidate_rejected',
+        ),
+      ),
+    });
+
+    await expect(
+      loadWordHelp(
+        'innovation',
+        'Innovation spoke at the event.',
+        services,
+      ),
+    ).resolves.toMatchObject({
+      message: expect.stringContaining('No safe translation matched'),
+      reason: 'candidate_rejected',
+      status: 'error',
+    });
+    expect(services.request).toHaveBeenCalledOnce();
+  });
+
+  it('does not retry a permanent broker failure', async () => {
+    const services = dependencies({
+      request: vi.fn().mockRejectedValue(
+        new BrokerLanguageError('unauthorized', 'request_failed', 401),
+      ),
+    });
+
+    await expect(
+      loadWordHelp(
+        'innovation',
+        'The company invested in innovation.',
+        services,
+      ),
+    ).resolves.toMatchObject({ reason: 'provider_error', status: 'error' });
+    expect(services.request).toHaveBeenCalledOnce();
   });
 
   it('keeps the English word unchanged when confidence is low', async () => {

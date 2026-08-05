@@ -1,5 +1,6 @@
 import {
   createLanguageCacheKey,
+  BrokerLanguageError,
   requestBrokerWordHelp,
 } from './brokerLanguage';
 import {
@@ -25,9 +26,18 @@ export type WordHelpOutcome =
     }
   | {
       message: string;
-      reason: 'dictionary_unavailable' | 'no_match' | 'provider_error';
+      reason:
+        | 'candidate_rejected'
+        | 'dictionary_unavailable'
+        | 'no_match'
+        | 'provider_error';
       status: 'error';
-    };
+  };
+
+export type WordHelpErrorReason = Extract<
+  WordHelpOutcome,
+  { status: 'error' }
+>['reason'];
 
 export type WordHelpDependencies = {
   findMatch(sourceWord: string): Promise<LocalDictionaryMatch | null>;
@@ -48,6 +58,38 @@ const defaultDependencies: WordHelpDependencies = {
   writeCache: writeCachedLanguageResult,
 };
 
+const MAX_BROKER_ATTEMPTS = 2;
+const BROKER_RETRY_DELAY_MS = 250;
+
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    error.name === 'AbortError'
+  );
+}
+
+function isRetryableBrokerError(error: unknown): boolean {
+  if (error instanceof BrokerLanguageError) {
+    return (
+      error.code === 'request_failed' &&
+      (error.status === undefined ||
+        error.status === 408 ||
+        error.status === 429 ||
+        error.status >= 500)
+    );
+  }
+
+  return error instanceof TypeError || isAbortError(error);
+}
+
+function waitForBrokerRetry(): Promise<void> {
+  return new Promise((resolve) => {
+    globalThis.setTimeout(resolve, BROKER_RETRY_DELAY_MS);
+  });
+}
+
 async function requestOnce(
   cacheKey: string,
   match: LocalDictionaryMatch,
@@ -58,29 +100,47 @@ async function requestOnce(
   const existingRequest = pendingRequests.get(cacheKey);
   if (existingRequest) return existingRequest;
 
-  const controller = new AbortController();
-  const timeout = globalThis.setTimeout(
-    () => controller.abort(),
-    REQUEST_TIMEOUT_MS,
-  );
-  const request = dependencies
-    .request({
-      match,
-      sentenceContext,
-      signal: controller.signal,
-      sourceWord,
-    })
-    .then(async (result) => {
-      if (result.confidence < MINIMUM_CONFIDENCE) {
-        throw new Error('low_confidence');
+  const request = (async () => {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < MAX_BROKER_ATTEMPTS; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = globalThis.setTimeout(
+        () => controller.abort(),
+        REQUEST_TIMEOUT_MS,
+      );
+
+      try {
+        const result = await dependencies.request({
+          match,
+          sentenceContext,
+          signal: controller.signal,
+          sourceWord,
+        });
+        if (result.confidence < MINIMUM_CONFIDENCE) {
+          throw new Error('low_confidence');
+        }
+        await dependencies.writeCache(cacheKey, result).catch(() => undefined);
+        return result;
+      } catch (error) {
+        lastError = error;
+        if (
+          attempt + 1 < MAX_BROKER_ATTEMPTS &&
+          isRetryableBrokerError(error)
+        ) {
+          await waitForBrokerRetry();
+          continue;
+        }
+        throw error;
+      } finally {
+        globalThis.clearTimeout(timeout);
       }
-      await dependencies.writeCache(cacheKey, result).catch(() => undefined);
-      return result;
-    })
-    .finally(() => {
-      globalThis.clearTimeout(timeout);
-      pendingRequests.delete(cacheKey);
-    });
+    }
+
+    throw lastError ?? new Error('Word help request failed.');
+  })().finally(() => {
+    pendingRequests.delete(cacheKey);
+  });
 
   pendingRequests.set(cacheKey, request);
   return request;
@@ -134,7 +194,19 @@ export async function loadWordHelp(
       dependencies,
     );
     return { result, source: 'broker', status: 'ready' };
-  } catch {
+  } catch (error) {
+    if (
+      error instanceof BrokerLanguageError &&
+      error.code === 'candidate_rejected'
+    ) {
+      return {
+        message:
+          'No safe translation matched this sentence. The original English stays unchanged.',
+        reason: 'candidate_rejected',
+        status: 'error',
+      };
+    }
+
     return {
       message:
         'LinguaRead could not confirm safe word help. The original English stays unchanged.',

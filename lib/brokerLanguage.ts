@@ -48,6 +48,7 @@ export class BrokerLanguageError extends Error {
       | 'invalid_input'
       | 'request_failed'
       | 'response_invalid',
+    readonly status?: number,
   ) {
     super(message);
     this.name = 'BrokerLanguageError';
@@ -200,6 +201,7 @@ export async function requestBrokerWordHelp(
     throw new BrokerLanguageError(
       `The language broker returned status ${response.status}.`,
       'request_failed',
+      response.status,
     );
   }
 
