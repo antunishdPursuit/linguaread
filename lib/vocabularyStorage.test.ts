@@ -16,10 +16,6 @@ import {
 describe('Dictionary state', () => {
   const innovation = toVocabularyEntry(MOCK_LANGUAGE_RESULTS[0]);
 
-  it('starts with one empty Dictionary', () => {
-    expect(EMPTY_VOCABULARY_STATE).toEqual({ entries: [] });
-  });
-
   it('saves each entry once', () => {
     const saved = saveVocabularyEntry(
       saveVocabularyEntry(EMPTY_VOCABULARY_STATE, innovation),

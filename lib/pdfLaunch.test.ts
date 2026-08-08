@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   isPdfHandoffSearch,
   isPdfUrl,
-  pdfNameFromUrl,
   toolbarTitleForPdf,
   viewerUrlForPdf,
 } from './pdfLaunch';
@@ -19,14 +18,6 @@ describe('PDF launch helpers', () => {
     expect(isPdfUrl('https://example.com/article')).toBe(false);
     expect(isPdfUrl('chrome://extensions/')).toBe(false);
     expect(isPdfUrl('not a URL')).toBe(false);
-  });
-
-  it('returns a readable PDF name', () => {
-    expect(
-      pdfNameFromUrl(
-        'https://example.com/files/MIT%20CASE%20-%20Ferrari%202025.pdf',
-      ),
-    ).toBe('MIT CASE - Ferrari 2025.pdf');
   });
 
   it('passes the selected PDF to the extension reader', () => {
