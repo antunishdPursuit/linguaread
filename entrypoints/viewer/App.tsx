@@ -27,6 +27,10 @@ import {
   type PdfWordSpatialIndex,
   type PdfWordTarget,
 } from '../../lib/pdfWordGeometry';
+import {
+  rememberPdfWordHighlight,
+  shouldHighlightPdfWord,
+} from '../../lib/pdfWordHighlights';
 import type { LanguageResult, VocabularyState } from '../../lib/types';
 import {
   createWordOnlyVocabularyEntry,
@@ -66,29 +70,56 @@ type WritableHighlightRegistry = HighlightRegistry & {
   set(name: string, highlight: Highlight): void;
 };
 
-function clearPdfWordHighlight(): void {
+function clearPdfWordHighlights(): void {
   const registry = CSS.highlights as WritableHighlightRegistry | undefined;
   registry?.delete(ACTIVE_PDF_WORD_HIGHLIGHT);
   window.getSelection()?.removeAllRanges();
 }
 
-function selectPdfWord(target: PdfWordTarget): void {
-  const selection = window.getSelection();
-  if (!selection || !target.selection) return;
+function createPdfWordRange(target: PdfWordTarget): Range | null {
+  const measuredSelection = target.selection;
+  if (!measuredSelection?.node.isConnected) return null;
 
-  // Chrome's native double-click selection can expand after repeated clicks.
-  // Recreate the measured word range so the blue selection stays exact.
   const range = document.createRange();
-  range.setStart(target.selection.node, target.selection.start);
-  range.setEnd(target.selection.node, target.selection.end);
-  selection.removeAllRanges();
+  range.setStart(measuredSelection.node, measuredSelection.start);
+  range.setEnd(measuredSelection.node, measuredSelection.end);
+  return range;
+}
+
+function renderPdfWordHighlights(
+  targetsByPage: Record<number, PdfWordTarget[]>,
+  trail: ReadonlySet<string>,
+  activeTargetId?: string,
+): void {
+  const targets = Object.values(targetsByPage).flat();
+  const ranges = targets
+    .filter((target) =>
+      shouldHighlightPdfWord(trail, target.id, activeTargetId),
+    )
+    .map(createPdfWordRange)
+    .filter((range): range is Range => range !== null);
+
   const registry = CSS.highlights as WritableHighlightRegistry | undefined;
   if (registry && typeof Highlight === 'function') {
-    registry.set(ACTIVE_PDF_WORD_HIGHLIGHT, new Highlight(range));
+    if (activeTargetId) window.getSelection()?.removeAllRanges();
+    if (ranges.length) {
+      registry.set(ACTIVE_PDF_WORD_HIGHLIGHT, new Highlight(...ranges));
+    } else {
+      registry.delete(ACTIVE_PDF_WORD_HIGHLIGHT);
+    }
     return;
   }
 
-  selection.addRange(range);
+  const activeTarget = activeTargetId
+    ? targets.find((target) => target.id === activeTargetId)
+    : undefined;
+  const activeRange = activeTarget
+    ? createPdfWordRange(activeTarget)
+    : null;
+  const selection = window.getSelection();
+  if (!selection || !activeRange) return;
+  selection.removeAllRanges();
+  selection.addRange(activeRange);
 }
 
 function getPdfWordViewportRectangle(
@@ -268,8 +299,10 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
 function App() {
   const viewerRef = useRef<HTMLDivElement>(null);
   const activeCardRef = useRef<ActiveCard | null>(null);
+  const highlightedWordIdsRef = useRef<Set<string>>(new Set());
   const wordHelpRequestRef = useRef(0);
   const wordTargetIndexesRef = useRef<Record<number, PdfWordSpatialIndex>>({});
+  const wordTargetsByPageRef = useRef<Record<number, PdfWordTarget[]>>({});
   const isPdfHandoff = isPdfHandoffSearch(window.location.search);
   const [file, setFile] = useState<File | string | null>(null);
   const [fileName, setFileName] = useState('Choose a PDF to begin');
@@ -322,8 +355,9 @@ function App() {
   const handleFile = useCallback((nextFile?: File) => {
     wordHelpRequestRef.current += 1;
     activeCardRef.current = null;
+    highlightedWordIdsRef.current = new Set();
     setActiveCard(null);
-    clearPdfWordHighlight();
+    clearPdfWordHighlights();
     setError('');
     setPdfError('');
     setLocalFileNeedsSelection(false);
@@ -333,6 +367,7 @@ function App() {
     setRequestedPage(null);
     setZoom(1);
     wordTargetIndexesRef.current = {};
+    wordTargetsByPageRef.current = {};
 
     if (!nextFile) {
       setFile(null);
@@ -390,10 +425,33 @@ function App() {
 
   const setPageWordTargets = useCallback(
     (pageNumber: number, targets: PdfWordTarget[]) => {
+      wordTargetsByPageRef.current = {
+        ...wordTargetsByPageRef.current,
+        [pageNumber]: targets,
+      };
       wordTargetIndexesRef.current = {
         ...wordTargetIndexesRef.current,
         [pageNumber]: buildPdfWordSpatialIndex(targets),
       };
+      const currentCard = activeCardRef.current;
+      const refreshedActiveTarget = currentCard
+        ? targets.find((target) => target.id === currentCard.target.id)
+        : undefined;
+      if (currentCard && refreshedActiveTarget) {
+        const rectangle = getPdfWordViewportRectangle(refreshedActiveTarget);
+        const nextCard = {
+          ...currentCard,
+          target: refreshedActiveTarget,
+          ...(rectangle ? positionWordCard(rectangle) : {}),
+        };
+        activeCardRef.current = nextCard;
+        setActiveCard(nextCard);
+      }
+      renderPdfWordHighlights(
+        wordTargetsByPageRef.current,
+        highlightedWordIdsRef.current,
+        activeCardRef.current?.target.id,
+      );
     },
     [],
   );
@@ -502,7 +560,10 @@ function App() {
     wordHelpRequestRef.current += 1;
     activeCardRef.current = null;
     setActiveCard(null);
-    clearPdfWordHighlight();
+    renderPdfWordHighlights(
+      wordTargetsByPageRef.current,
+      highlightedWordIdsRef.current,
+    );
   }, []);
 
   const requestWordHelp = useCallback((target: PdfWordTarget, rect: DOMRect) => {
@@ -546,6 +607,17 @@ function App() {
 
       activeCardRef.current = resolvedCard;
       setActiveCard(resolvedCard);
+      if (resolvedCard.status === 'ready') {
+        highlightedWordIdsRef.current = rememberPdfWordHighlight(
+          highlightedWordIdsRef.current,
+          target.id,
+        );
+      }
+      renderPdfWordHighlights(
+        wordTargetsByPageRef.current,
+        highlightedWordIdsRef.current,
+        resolvedCard.status === 'ready' ? undefined : target.id,
+      );
     });
   }, []);
 
@@ -691,7 +763,13 @@ function App() {
       const word = findWordAtPoint(event);
       if (!word) return;
       event.preventDefault();
-      selectPdfWord(word.target);
+      // Chrome's native double-click selection can expand after repeated
+      // clicks. Rebuild the exact measured ranges instead.
+      renderPdfWordHighlights(
+        wordTargetsByPageRef.current,
+        highlightedWordIdsRef.current,
+        word.target.id,
+      );
       showCard(word.target, word.rectangle);
     };
     const handleMouseDown = (event: MouseEvent) => {

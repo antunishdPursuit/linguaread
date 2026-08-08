@@ -7,6 +7,10 @@ import {
   tokenizeEnglishWords,
   toPageRelativeRectangle,
 } from './pdfWordGeometry';
+import {
+  rememberPdfWordHighlight,
+  shouldHighlightPdfWord,
+} from './pdfWordHighlights';
 
 describe('PDF word geometry tokenization', () => {
   it('finds separate words without changing their source offsets', () => {
@@ -97,5 +101,23 @@ describe('PDF word geometry tokenization', () => {
 
     expect(findPdfWordTargetAtPoint(index, 50, 50)).toEqual(smallerTarget);
     expect(findPdfWordTargetAtPoint(index, 200, 50)).toBeNull();
+  });
+
+  it('keeps only successful exact occurrences in one PDF highlight trail', () => {
+    let trail = new Set<string>();
+
+    expect(shouldHighlightPdfWord(trail, '1-0-0', '1-0-0')).toBe(true);
+    expect(shouldHighlightPdfWord(trail, '1-0-6')).toBe(false);
+
+    trail = rememberPdfWordHighlight(trail, '1-0-0');
+    expect(shouldHighlightPdfWord(trail, '1-0-0')).toBe(true);
+    expect(shouldHighlightPdfWord(trail, '2-0-0')).toBe(false);
+
+    trail = rememberPdfWordHighlight(trail, '2-0-0');
+    expect([...trail]).toEqual(['1-0-0', '2-0-0']);
+
+    trail = new Set();
+    expect(shouldHighlightPdfWord(trail, '1-0-0')).toBe(false);
+    expect(shouldHighlightPdfWord(trail, '2-0-0')).toBe(false);
   });
 });
