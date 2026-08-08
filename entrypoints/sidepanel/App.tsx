@@ -38,9 +38,6 @@ function DictionaryEntries({
               )}
               <strong>{entry.sourceWord}</strong>
             </div>
-            {entry.cefr !== 'unknown' && (
-              <span className="cefr">{entry.cefr}</span>
-            )}
             <button
               className="remove-word"
               type="button"
@@ -124,7 +121,6 @@ function App() {
           <span aria-hidden="true">▣</span>
           <h1>LinguaRead</h1>
         </div>
-        <span className="level-badge">B2</span>
       </header>
 
       <section className="panel-purpose" aria-labelledby="panel-title">

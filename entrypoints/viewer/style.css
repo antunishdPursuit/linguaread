@@ -100,7 +100,6 @@ button:focus-visible,
 }
 
 .reader-tools,
-.level-selector,
 .words-button {
   display: flex;
   align-items: center;
@@ -108,37 +107,6 @@ button:focus-visible,
 
 .reader-tools {
   gap: 14px;
-}
-
-.level-selector {
-  gap: 4px;
-}
-
-.level-label {
-  margin-right: 4px;
-  color: var(--muted);
-  font-size: 12px;
-  text-transform: lowercase;
-}
-
-.level-selector button {
-  min-width: 30px;
-  min-height: 30px;
-  padding: 4px;
-  border: 1px solid var(--color-border);
-  border-radius: 5px;
-  color: var(--color-text-muted);
-  background: var(--color-surface-subtle);
-  font-size: 12px;
-  opacity: 0.58;
-  cursor: not-allowed;
-}
-
-.level-selector button.active {
-  border-color: var(--gold);
-  color: var(--color-text);
-  background: var(--gold);
-  opacity: 1;
 }
 
 .words-button,
@@ -424,6 +392,14 @@ button:focus-visible,
   box-shadow: 0 12px 34px rgb(35 31 26 / 22%);
 }
 
+::highlight(linguaread-active-word) {
+  color: #1769aa;
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.12em;
+}
+
 .react-pdf__Page {
   background: var(--paper) !important;
 }
@@ -557,14 +533,88 @@ button:focus-visible,
 .word-details {
   display: grid;
   gap: 10px;
-  margin: 14px 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+  margin: 10px 0 14px;
 }
 
 .word-details div {
   display: grid;
   gap: 3px;
+}
+
+.word-details .usage-detail {
+  padding: 10px 12px;
+  border: 1px solid var(--color-usage-border);
+  border-radius: var(--radius-control);
+}
+
+.word-details .simpler-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.word-details .simpler-detail dt,
+.word-details .usage-detail dt {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.word-details .simpler-detail dt {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.detail-arrow {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.word-details .simpler-detail dd {
+  padding: 2px 7px;
+  border-radius: 4px;
+  color: var(--teal);
+  background: #e3f2ef;
+  font-family: var(--font-interface);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.word-details .meaning-detail {
+  gap: 0;
+}
+
+.word-details .example-detail {
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+}
+
+.word-details .example-detail dd {
+  color: var(--muted);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.word-details .usage-detail {
+  background: var(--color-usage-surface);
+}
+
+.word-details .usage-detail dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #8a5b12;
+}
+
+.usage-icon {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 .word-details dt {
@@ -725,10 +775,6 @@ button:focus-visible,
   .reader-tools {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .level-selector {
-    justify-content: space-between;
   }
 
   .document-header {

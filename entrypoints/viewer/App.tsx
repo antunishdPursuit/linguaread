@@ -59,7 +59,18 @@ type ActiveCard = {
   top: number;
 };
 
-const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
+const ACTIVE_PDF_WORD_HIGHLIGHT = 'linguaread-active-word';
+
+type WritableHighlightRegistry = HighlightRegistry & {
+  delete(name: string): boolean;
+  set(name: string, highlight: Highlight): void;
+};
+
+function clearPdfWordHighlight(): void {
+  const registry = CSS.highlights as WritableHighlightRegistry | undefined;
+  registry?.delete(ACTIVE_PDF_WORD_HIGHLIGHT);
+  window.getSelection()?.removeAllRanges();
+}
 
 function selectPdfWord(target: PdfWordTarget): void {
   const selection = window.getSelection();
@@ -71,6 +82,12 @@ function selectPdfWord(target: PdfWordTarget): void {
   range.setStart(target.selection.node, target.selection.start);
   range.setEnd(target.selection.node, target.selection.end);
   selection.removeAllRanges();
+  const registry = CSS.highlights as WritableHighlightRegistry | undefined;
+  if (registry && typeof Highlight === 'function') {
+    registry.set(ACTIVE_PDF_WORD_HIGHLIGHT, new Highlight(range));
+    return;
+  }
+
   selection.addRange(range);
 }
 
@@ -306,7 +323,7 @@ function App() {
     wordHelpRequestRef.current += 1;
     activeCardRef.current = null;
     setActiveCard(null);
-    window.getSelection()?.removeAllRanges();
+    clearPdfWordHighlight();
     setError('');
     setPdfError('');
     setLocalFileNeedsSelection(false);
@@ -485,7 +502,7 @@ function App() {
     wordHelpRequestRef.current += 1;
     activeCardRef.current = null;
     setActiveCard(null);
-    window.getSelection()?.removeAllRanges();
+    clearPdfWordHighlight();
   }, []);
 
   const requestWordHelp = useCallback((target: PdfWordTarget, rect: DOMRect) => {
@@ -757,26 +774,6 @@ function App() {
         </div>
 
         <div className="reader-tools">
-          <div className="level-selector" aria-label="Reading level fixed at B2">
-            <span className="level-label">Level</span>
-            {CEFR_LEVELS.map((level) => (
-              <button
-                key={level}
-                type="button"
-                className={level === 'B2' ? 'active' : ''}
-                disabled
-                aria-current={level === 'B2' ? 'true' : undefined}
-                title={
-                  level === 'B2'
-                    ? 'B2 is active'
-                    : 'Available in a later version'
-                }
-              >
-                {level}
-              </button>
-            ))}
-          </div>
-
           <button className="words-button" onClick={openSidePanel}>
             <span aria-hidden="true">▣</span>
             Dictionary
@@ -961,24 +958,32 @@ function App() {
           )}
           {activeCard.status === 'ready' && activeCard.result ? (
             <dl className="word-details">
-              <div>
-                <dt>Level</dt>
-                <dd>{activeCard.result.cefr}</dd>
-              </div>
-              <div>
+              <div className="simpler-detail">
                 <dt>Simpler English</dt>
+                <span className="detail-arrow" aria-hidden="true">
+                  →
+                </span>
                 <dd>{activeCard.result.simplerEnglish}</dd>
               </div>
-              <div>
-                <dt>Meaning</dt>
+              <div className="meaning-detail">
+                <dt className="sr-only">Meaning</dt>
                 <dd>{activeCard.result.definition}</dd>
               </div>
-              <div>
-                <dt>Example</dt>
-                <dd>{activeCard.result.contextualExample}</dd>
+              <div className="example-detail">
+                <dt className="sr-only">Example</dt>
+                <dd>“{activeCard.result.contextualExample}”</dd>
               </div>
-              <div>
-                <dt>Usage</dt>
+              <div className="usage-detail">
+                <dt>
+                  <svg
+                    className="usage-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 18h6M10 22h4M8.4 14.6A6 6 0 1 1 15.6 14.6C14.6 15.3 14 16.1 14 17h-4c0-.9-.6-1.7-1.6-2.4Z" />
+                  </svg>
+                  Usage
+                </dt>
                 <dd>{activeCard.result.usageNote}</dd>
               </div>
             </dl>

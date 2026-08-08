@@ -10,9 +10,10 @@
   --color-primary: #a8442f;
   --color-primary-hover: #8f3525;
   --color-focus: #176f68;
-  --color-level: #c59b36;
   --color-error: #9f3428;
   --color-error-surface: #fbe9e4;
+  --color-usage-surface: #fff4c7;
+  --color-usage-border: #d8b95f;
   --shadow-control: 0 6px 18px rgb(35 31 26 / 10%);
   --shadow-card: 0 16px 42px rgb(35 31 26 / 20%);
   --radius-control: 8px;
@@ -28,5 +29,4 @@
   --orange: var(--color-primary);
   --teal: var(--color-focus);
   --green: var(--color-focus);
-  --gold: var(--color-level);
 }
