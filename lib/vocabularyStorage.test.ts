@@ -35,7 +35,7 @@ describe('Dictionary state', () => {
       cefr: 'unknown',
       definition: '',
       mandarin: '',
-      simplerEnglish: '',
+      partOfSpeech: '',
       sourceWord: 'championship',
     });
   });

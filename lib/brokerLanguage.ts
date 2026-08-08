@@ -12,18 +12,40 @@ export const LANGUAGE_BROKER_CLIENT_STORAGE_KEY =
   'linguaread-broker-client-v1';
 
 const MAX_CANDIDATES = 12;
-const CARD_CONTENT_VERSION = 'concise-card-v2';
+const CARD_CONTENT_VERSION = 'concise-card-v3';
 const MAX_DEFINITION_LENGTH = 160;
 const PART_OF_SPEECH =
   '(?:n|v|vt|vi|adj|adv|prep|pron|conj|interj|num|art|aux|modal|phr)';
 const LEADING_PART_OF_SPEECH_PATTERN = new RegExp(
-  `^${PART_OF_SPEECH}\\.\\s*`,
+  `^(${PART_OF_SPEECH})\\.?\\s+`,
   'i',
 );
 const NEXT_PART_OF_SPEECH_PATTERN = new RegExp(
-  `\\s+(?=${PART_OF_SPEECH}\\.\\s)`,
+  `\\s+(?=${PART_OF_SPEECH}\\.?\\s)`,
   'i',
 );
+const ANY_PART_OF_SPEECH_PATTERN = new RegExp(
+  `(?:^|\\s)(${PART_OF_SPEECH})\\.?\\s+`,
+  'gi',
+);
+
+const PART_OF_SPEECH_LABELS: Record<string, string> = {
+  adj: 'ADJ',
+  adv: 'ADV',
+  art: 'ART',
+  aux: 'AUX',
+  conj: 'CONJ',
+  interj: 'INTERJ',
+  modal: 'MODAL',
+  n: 'N',
+  num: 'NUM',
+  phr: 'PHR',
+  prep: 'PREP',
+  pron: 'PRON',
+  v: 'V',
+  vi: 'V',
+  vt: 'V',
+};
 
 export type BrokerCandidate = {
   gloss: string;
@@ -84,24 +106,49 @@ function truncateAtWord(value: string, maximumLength: number): string {
   return `${clipped.slice(0, lastSpace > 0 ? lastSpace : maximumLength).trim()}…`;
 }
 
-function conciseDefinition(gloss: string): string {
+function conciseDefinition(gloss: string): {
+  definition: string;
+  partOfSpeech: string;
+} {
   const normalized = gloss.trim().replace(/\s+/g, ' ');
-  const withoutLabels = normalized
-    .replace(/^\([^)]{1,60}\)\s*/, '')
-    .replace(LEADING_PART_OF_SPEECH_PATTERN, '');
+  const withoutParenthetical = normalized.replace(/^\([^)]{1,60}\)\s*/, '');
+  const partOfSpeechMatch = withoutParenthetical.match(
+    LEADING_PART_OF_SPEECH_PATTERN,
+  );
+  const partOfSpeech = partOfSpeechMatch
+    ? PART_OF_SPEECH_LABELS[partOfSpeechMatch[1].toLowerCase()] ?? ''
+    : '';
+  const withoutLabels = withoutParenthetical.replace(
+    LEADING_PART_OF_SPEECH_PATTERN,
+    '',
+  );
   const firstSense = withoutLabels.split(NEXT_PART_OF_SPEECH_PATTERN, 1)[0];
   const firstSentence = firstSense.match(/^.*?[.!?](?:\s|$)/)?.[0] ?? firstSense;
   const concise = truncateAtWord(firstSentence.trim(), MAX_DEFINITION_LENGTH);
-  if (!concise) return normalized;
+  if (!concise) return { definition: normalized, partOfSpeech };
 
   const sentenceCase = `${concise[0].toLocaleUpperCase('en-US')}${concise.slice(1)}`;
-  return /[.!?…]$/.test(sentenceCase) ? sentenceCase : `${sentenceCase}.`;
+  return {
+    definition: /[.!?…]$/.test(sentenceCase)
+      ? sentenceCase
+      : `${sentenceCase}.`,
+    partOfSpeech,
+  };
 }
 
-function simplerEnglishFromDefinition(definition: string): string {
-  const phrase = definition.replace(/[.!?…]+$/, '');
-  if (!phrase) return definition;
-  return `${phrase[0].toLocaleLowerCase('en-US')}${phrase.slice(1)}`;
+function partOfSpeechForSense(gloss: string, selectedSense: string): string {
+  const directLabel = conciseDefinition(selectedSense).partOfSpeech;
+  if (directLabel) return directLabel;
+
+  const senseIndex = gloss
+    .toLocaleLowerCase('en-US')
+    .indexOf(selectedSense.toLocaleLowerCase('en-US'));
+  if (senseIndex < 0) return '';
+
+  const precedingGloss = gloss.slice(0, senseIndex);
+  const matches = [...precedingGloss.matchAll(ANY_PART_OF_SPEECH_PATTERN)];
+  const nearestLabel = matches.at(-1)?.[1]?.toLowerCase();
+  return nearestLabel ? PART_OF_SPEECH_LABELS[nearestLabel] ?? '' : '';
 }
 
 function visibleUsageNote(reason: string, candidateId: string): string {
@@ -325,21 +372,25 @@ export async function requestBrokerWordHelp(
   // Pinyin is needed only after the broker accepts a Mandarin candidate.
   // Loading it here keeps the normal PDF reader startup bundle smaller.
   const { pinyin } = await import('pinyin-pro');
-  const definition = conciseDefinition(selection.selectedSense ?? selected.gloss);
+  const selectedSense = selection.selectedSense ?? selected.gloss;
+  const definitionDetails = conciseDefinition(selectedSense);
+  const partOfSpeech =
+    definitionDetails.partOfSpeech ||
+    partOfSpeechForSense(selected.gloss, selectedSense);
 
   return {
     action: 'use_mandarin',
     cefr: 'B2',
     confidence: selection.confidence,
     contextualExample: sentenceContext,
-    definition,
+    definition: definitionDetails.definition,
     displayWord: selected.value,
     id: `${request.match.headword}-${stableHash(resultIdentity)}`,
     lemma: request.match.headword,
     mandarin: selected.value,
+    partOfSpeech,
     pinyin: pinyin(selected.value),
-    shortMeaning: definition,
-    simplerEnglish: simplerEnglishFromDefinition(definition),
+    shortMeaning: definitionDetails.definition,
     sourceWord,
     usageNote: visibleUsageNote(selection.reason, selected.id),
   };

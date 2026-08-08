@@ -51,15 +51,13 @@ function DictionaryEntries({
           </div>
           {entry.pinyin && <p className="pinyin">{entry.pinyin}</p>}
           <p className="meaning">
+            {entry.partOfSpeech && (
+              <span className="part-of-speech">[{entry.partOfSpeech}]</span>
+            )}{' '}
             {entry.definition ||
               entry.shortMeaning ||
               'Word details are not available yet.'}
           </p>
-          {entry.simplerEnglish && (
-            <p className="simpler">
-              Simpler English: <strong>{entry.simplerEnglish}</strong>
-            </p>
-          )}
         </li>
       ))}
     </ul>
@@ -92,7 +90,7 @@ function App() {
         entry.pinyin,
         entry.definition,
         entry.shortMeaning,
-        entry.simplerEnglish,
+        entry.partOfSpeech,
       ].some((value) => value.toLowerCase().includes(normalized)),
     );
   }, [query, vocabulary.entries]);

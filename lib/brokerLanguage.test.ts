@@ -81,15 +81,60 @@ describe('language broker client', () => {
       contextualExample:
         'They have a track record of producing powerful automobiles.',
       definition: 'Create or manufacture a man-made product.',
-      simplerEnglish: 'create or manufacture a man-made product',
       lemma: 'produce',
       mandarin: '生产',
+      partOfSpeech: 'V',
       pinyin: 'shēng chǎn',
       sourceWord: 'producing',
       usageNote: 'This translation fits the sentence.',
     });
     expect(fetchImplementation).toHaveBeenCalledOnce();
   });
+
+  it.each([
+    ['v have as a part, be made up out of', 'V', 'Have as a part, be made up out of.'],
+    ['n. a period of ten years', 'N', 'A period of ten years.'],
+    ['adj. requiring payment', 'ADJ', 'Requiring payment.'],
+  ])(
+    'formats the %s dictionary label as [%s]',
+    async (selectedSense, expectedPartOfSpeech, expectedDefinition) => {
+      const fetchImplementation = vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            model: 'gemini-3.5-flash',
+            promptVersion: 'candidate-selector-v2',
+            result: {
+              candidateId: 'ecdict:0',
+              confidence: 0.96,
+              decision: 'use_candidate',
+              reason: 'This translation fits the sentence.',
+              selectedSense,
+              tokenType: 'common_word',
+            },
+          }),
+        ),
+      );
+      const labeledMatch = {
+        ...match,
+        translations: [{ ...match.translations[0], gloss: selectedSense }],
+      };
+
+      const result = await requestBrokerWordHelp(
+        {
+          match: labeledMatch,
+          sentenceContext: 'The selected word appears in this sentence.',
+          sourceWord: 'selected',
+        },
+        fetchImplementation,
+        storage(),
+      );
+
+      expect(result).toMatchObject({
+        definition: expectedDefinition,
+        partOfSpeech: expectedPartOfSpeech,
+      });
+    },
+  );
 
   it('rejects keep-English decisions without inventing a translation', async () => {
     const fetchImplementation = vi.fn(async () =>

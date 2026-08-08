@@ -27,9 +27,9 @@ export function createWordOnlyVocabularyEntry(
     id: `word-${normalizedWord}`,
     lemma: normalizedWord,
     mandarin: '',
+    partOfSpeech: '',
     pinyin: '',
     shortMeaning: '',
-    simplerEnglish: '',
     sourceWord,
     usageNote: '',
   };
@@ -107,14 +107,12 @@ function isVocabularyEntry(value: unknown): value is VocabularyEntry {
 }
 
 function withExpandedFields(entry: VocabularyEntry): VocabularyEntry {
-  const hasLanguageDetails = entry.cefr !== 'unknown';
   return {
     ...entry,
     contextualExample: entry.contextualExample || '',
     definition: entry.definition || entry.shortMeaning,
     lemma: entry.lemma || entry.sourceWord.toLowerCase(),
-    simplerEnglish:
-      entry.simplerEnglish || (hasLanguageDetails ? entry.displayWord : ''),
+    partOfSpeech: entry.partOfSpeech || '',
     usageNote: entry.usageNote || '',
   };
 }

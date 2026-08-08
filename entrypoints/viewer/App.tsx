@@ -1036,16 +1036,16 @@ function App() {
           )}
           {activeCard.status === 'ready' && activeCard.result ? (
             <dl className="word-details">
-              <div className="simpler-detail">
-                <dt>Simpler English</dt>
-                <span className="detail-arrow" aria-hidden="true">
-                  →
-                </span>
-                <dd>{activeCard.result.simplerEnglish}</dd>
-              </div>
               <div className="meaning-detail">
                 <dt className="sr-only">Meaning</dt>
-                <dd>{activeCard.result.definition}</dd>
+                <dd>
+                  {activeCard.result.partOfSpeech && (
+                    <span className="part-of-speech">
+                      [{activeCard.result.partOfSpeech}]
+                    </span>
+                  )}{' '}
+                  {activeCard.result.definition}
+                </dd>
               </div>
               <div className="example-detail">
                 <dt className="sr-only">Example</dt>
