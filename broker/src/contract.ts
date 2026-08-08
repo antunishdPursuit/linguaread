@@ -1,5 +1,5 @@
 export const BROKER_MODEL = 'gemini-3.5-flash';
-export const BROKER_PROMPT_VERSION = 'candidate-selector-v1';
+export const BROKER_PROMPT_VERSION = 'candidate-selector-v2';
 export const MAX_REQUEST_BYTES = 12_000;
 
 const MAX_WORD_LENGTH = 80;
@@ -41,6 +41,7 @@ export type BrokerResult = {
   confidence: number;
   decision: SelectionDecision;
   reason: string;
+  selectedSense: string | null;
   tokenType: TokenType;
 };
 
@@ -170,6 +171,7 @@ export function parseBrokerResult(
       'confidence',
       'decision',
       'reason',
+      'selectedSense',
       'tokenType',
     ])
   ) {
@@ -199,19 +201,31 @@ export function parseBrokerResult(
     value.candidateId === null
       ? null
       : requireBoundedString(value.candidateId, 'candidateId', 64);
+  const selectedSense =
+    value.selectedSense === null
+      ? null
+      : requireBoundedString(value.selectedSense, 'selectedSense', 160);
 
   if (value.decision === 'use_candidate') {
-    if (
-      candidateId === null ||
-      !candidates.some((candidate) => candidate.id === candidateId)
-    ) {
+    const selectedCandidate = candidates.find(
+      (candidate) => candidate.id === candidateId,
+    );
+    if (!selectedCandidate) {
       throw new BrokerValidationError(
         'The provider selected an unavailable candidate.',
       );
     }
-  } else if (candidateId !== null) {
+    if (
+      selectedSense === null ||
+      !selectedCandidate.gloss.includes(selectedSense)
+    ) {
+      throw new BrokerValidationError(
+        'The provider selected a sense outside the candidate gloss.',
+      );
+    }
+  } else if (candidateId !== null || selectedSense !== null) {
     throw new BrokerValidationError(
-      'A non-candidate decision cannot include a candidate ID.',
+      'A non-candidate decision cannot include candidate details.',
     );
   }
 
@@ -220,6 +234,7 @@ export function parseBrokerResult(
     confidence: value.confidence,
     decision: value.decision,
     reason: requireBoundedString(value.reason, 'reason', 160),
+    selectedSense,
     tokenType: value.tokenType,
   };
 }

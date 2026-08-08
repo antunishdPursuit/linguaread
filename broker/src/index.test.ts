@@ -44,6 +44,7 @@ function validProviderResult() {
     confidence: 0.94,
     decision: 'use_candidate',
     reason: 'This candidate preserves the meaning in the sentence.',
+    selectedSense: 'a new idea or method',
     tokenType: 'common_word',
   };
 }
@@ -131,7 +132,7 @@ describe('Cloudflare language broker', () => {
     expect(response.headers.get('X-LinguaRead-Cache')).toBe('MISS');
     await expect(response.json()).resolves.toMatchObject({
       model: 'gemini-3.5-flash',
-      promptVersion: 'candidate-selector-v1',
+      promptVersion: 'candidate-selector-v2',
       result: validProviderResult(),
     });
 
@@ -266,13 +267,16 @@ describe('Cloudflare language broker', () => {
     expect(providerFetch).not.toHaveBeenCalled();
   });
 
-  it('rejects a provider candidate that was not supplied', async () => {
+  it.each([
+    [{ candidateId: 'invented:translation' }],
+    [{ selectedSense: 'an invented definition' }],
+  ])('rejects provider details that were not supplied', async (override) => {
     const providerFetch = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(
         JSON.stringify(
           interactionWithResult({
             ...validProviderResult(),
-            candidateId: 'invented:translation',
+            ...override,
           }),
         ),
         { status: 200 },

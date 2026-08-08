@@ -21,6 +21,7 @@ const RESPONSE_SCHEMA = {
       enum: ['use_candidate', 'none_fit', 'keep_english'],
     },
     reason: { type: 'string' },
+    selectedSense: { type: ['string', 'null'] },
     tokenType: {
       type: 'string',
       enum: ['common_word', 'proper_name', 'acronym', 'other'],
@@ -31,6 +32,7 @@ const RESPONSE_SCHEMA = {
     'confidence',
     'decision',
     'reason',
+    'selectedSense',
     'tokenType',
   ],
 } as const;
@@ -104,6 +106,8 @@ function buildPrompt(request: BrokerRequest): string {
     'Choose none_fit when no supplied candidate meets that standard.',
     'Choose keep_english for a proper name, acronym, other non-lexical token, or an English word that should remain unchanged.',
     'Never create a candidate, translation, synonym, or candidate ID.',
+    'For use_candidate, copy selectedSense exactly from the part of the chosen candidate gloss that matches the sentence.',
+    'For none_fit or keep_english, return null for selectedSense.',
     'Keep the reason under 160 characters.',
     '',
     `<word>${request.word}</word>`,

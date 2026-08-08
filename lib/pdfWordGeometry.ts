@@ -41,8 +41,22 @@ export type PdfWordSpatialIndex = {
 };
 
 const DEFAULT_SPATIAL_ROW_HEIGHT = 32;
+const DEFAULT_CONTEXT_MAX_LENGTH = 240;
+const CONTEXT_WORDS_BEFORE_TARGET = 4;
 const WORD_PATTERN = /[A-Za-z]+(?:['\u2019-][A-Za-z]+)*/g;
 const SENTENCE_END_PATTERN = /[.!?]/;
+
+function normalizeContext(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+function truncateContext(value: string, maximumLength: number): string {
+  if (value.length <= maximumLength) return value;
+  const clipped = value.slice(0, maximumLength + 1);
+  const lastSpace = clipped.lastIndexOf(' ');
+  const end = lastSpace > 0 ? lastSpace : maximumLength;
+  return `${clipped.slice(0, end).trim().replace(/[,;:\u2013\u2014-]+$/, '')}…`;
+}
 
 export function tokenizeEnglishWords(value: string): WordToken[] {
   return Array.from(value.matchAll(WORD_PATTERN), (match) => ({
@@ -55,7 +69,7 @@ export function tokenizeEnglishWords(value: string): WordToken[] {
 export function extractSentenceContext(
   pageText: string,
   wordStart: number,
-  maximumLength = 800,
+  maximumLength = DEFAULT_CONTEXT_MAX_LENGTH,
 ): string {
   const safeStart = Math.max(0, Math.min(wordStart, pageText.length));
   let sentenceStart = safeStart;
@@ -75,14 +89,22 @@ export function extractSentenceContext(
   }
   if (sentenceEnd < pageText.length) sentenceEnd += 1;
 
-  const sentence = pageText
-    .slice(sentenceStart, sentenceEnd)
-    .trim()
-    .replace(/\s+/g, ' ');
+  const sentence = normalizeContext(pageText.slice(sentenceStart, sentenceEnd));
+  if (sentence.length <= maximumLength) return sentence;
 
-  return sentence.length <= maximumLength
-    ? sentence
-    : sentence.slice(0, maximumLength).trim();
+  // Some PDFs expose headings and bylines as one unpunctuated text stream.
+  // Keep a small lead-in before the selected word so that metadata cannot take
+  // over the contextual example or push the selected word out of the result.
+  const prefix = normalizeContext(pageText.slice(sentenceStart, safeStart));
+  const focusedPrefix = prefix
+    .split(' ')
+    .slice(-CONTEXT_WORDS_BEFORE_TARGET)
+    .join(' ');
+  const suffix = normalizeContext(pageText.slice(safeStart, sentenceEnd));
+  return truncateContext(
+    normalizeContext(`${focusedPrefix} ${suffix}`),
+    maximumLength,
+  );
 }
 
 function usableRectangle(rectangle: DOMRect): boolean {

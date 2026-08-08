@@ -37,6 +37,18 @@ describe('PDF word geometry tokenization', () => {
     expect(extractSentenceContext(text, text.indexOf('attributed'))).toBe(
       'Ferrari attributed its growth to planning.',
     );
+
+    const noisyPdfText =
+      "25-237 May 11, 2025 Ferrari in 2025 Balancing Tradition Donald Sull Cameron Davis Born of Enzo Ferrari's passion for car racing in the early decades of the Twentieth Century, the company became famous worldwide.";
+    expect(
+      extractSentenceContext(
+        noisyPdfText,
+        noisyPdfText.indexOf('passion'),
+        180,
+      ),
+    ).toBe(
+      "Born of Enzo Ferrari's passion for car racing in the early decades of the Twentieth Century, the company became famous worldwide.",
+    );
   });
 
   it('converts browser rectangles to page-relative word geometry', () => {

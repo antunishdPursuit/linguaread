@@ -6,14 +6,15 @@ import {
 } from './brokerLanguage';
 
 const match = {
-  headword: 'innovation',
+  headword: 'produce',
   translations: [
     {
-      gloss: 'The introduction of something new.',
-      headword: 'innovation',
-      lookup: 'exact' as const,
-      source: 'freedict' as const,
-      value: '創新',
+      gloss:
+        'n. fresh fruits and vegetable grown for the market v. bring forth or yield v. create or manufacture a man-made product',
+      headword: 'produce',
+      lookup: 'lemma' as const,
+      source: 'ecdict' as const,
+      value: '生产',
     },
   ],
 };
@@ -45,17 +46,18 @@ describe('language broker client', () => {
     });
   });
 
-  it('maps the selected supplied candidate into the word card', async () => {
+  it('maps the selected context-matched sense into the complete word card', async () => {
     const fetchImplementation = vi.fn(async () =>
       new Response(
         JSON.stringify({
           model: 'gemini-3.5-flash',
-          promptVersion: 'candidate-selector-v1',
+          promptVersion: 'candidate-selector-v2',
           result: {
-            candidateId: 'freedict:0',
+            candidateId: 'ecdict:0',
             confidence: 0.96,
             decision: 'use_candidate',
-            reason: 'This translation fits the sentence.',
+            reason: "This translation fits the sentence (ecdict:0).",
+            selectedSense: 'create or manufacture a man-made product',
             tokenType: 'common_word',
           },
         }),
@@ -65,8 +67,9 @@ describe('language broker client', () => {
     const result = await requestBrokerWordHelp(
       {
         match,
-        sentenceContext: 'The company invested in innovation.',
-        sourceWord: 'innovation',
+        sentenceContext:
+          'They have a track record of producing powerful automobiles.',
+        sourceWord: 'producing',
       },
       fetchImplementation,
       storage(),
@@ -75,11 +78,15 @@ describe('language broker client', () => {
     expect(result).toMatchObject({
       action: 'use_mandarin',
       cefr: 'B2',
-      definition: 'The introduction of something new.',
-      lemma: 'innovation',
-      mandarin: '創新',
-      pinyin: 'chuàng xīn',
-      sourceWord: 'innovation',
+      contextualExample:
+        'They have a track record of producing powerful automobiles.',
+      definition: 'Create or manufacture a man-made product.',
+      simplerEnglish: 'create or manufacture a man-made product',
+      lemma: 'produce',
+      mandarin: '生产',
+      pinyin: 'shēng chǎn',
+      sourceWord: 'producing',
+      usageNote: 'This translation fits the sentence.',
     });
     expect(fetchImplementation).toHaveBeenCalledOnce();
   });
@@ -89,12 +96,13 @@ describe('language broker client', () => {
       new Response(
         JSON.stringify({
           model: 'gemini-3.5-flash',
-          promptVersion: 'candidate-selector-v1',
+          promptVersion: 'candidate-selector-v2',
           result: {
             candidateId: null,
             confidence: 0.92,
             decision: 'keep_english',
             reason: 'The selected word is a proper name.',
+            selectedSense: null,
             tokenType: 'proper_name',
           },
         }),

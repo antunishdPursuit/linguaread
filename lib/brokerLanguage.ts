@@ -7,11 +7,23 @@ import type { LanguageResult } from './types';
 export const LANGUAGE_BROKER_URL =
   'https://linguaread-language-broker.enhancereactapptest.workers.dev/v1/word-help';
 export const LANGUAGE_BROKER_MODEL = 'gemini-3.5-flash';
-export const LANGUAGE_BROKER_PROMPT_VERSION = 'candidate-selector-v1';
+export const LANGUAGE_BROKER_PROMPT_VERSION = 'candidate-selector-v2';
 export const LANGUAGE_BROKER_CLIENT_STORAGE_KEY =
   'linguaread-broker-client-v1';
 
 const MAX_CANDIDATES = 12;
+const CARD_CONTENT_VERSION = 'concise-card-v2';
+const MAX_DEFINITION_LENGTH = 160;
+const PART_OF_SPEECH =
+  '(?:n|v|vt|vi|adj|adv|prep|pron|conj|interj|num|art|aux|modal|phr)';
+const LEADING_PART_OF_SPEECH_PATTERN = new RegExp(
+  `^${PART_OF_SPEECH}\\.\\s*`,
+  'i',
+);
+const NEXT_PART_OF_SPEECH_PATTERN = new RegExp(
+  `\\s+(?=${PART_OF_SPEECH}\\.\\s)`,
+  'i',
+);
 
 export type BrokerCandidate = {
   gloss: string;
@@ -25,6 +37,7 @@ type BrokerSelection = {
   confidence: number;
   decision: 'keep_english' | 'none_fit' | 'use_candidate';
   reason: string;
+  selectedSense: string | null;
   tokenType: 'acronym' | 'common_word' | 'other' | 'proper_name';
 };
 
@@ -64,6 +77,43 @@ function stableHash(value: string): string {
   return (hash >>> 0).toString(36);
 }
 
+function truncateAtWord(value: string, maximumLength: number): string {
+  if (value.length <= maximumLength) return value;
+  const clipped = value.slice(0, maximumLength + 1);
+  const lastSpace = clipped.lastIndexOf(' ');
+  return `${clipped.slice(0, lastSpace > 0 ? lastSpace : maximumLength).trim()}…`;
+}
+
+function conciseDefinition(gloss: string): string {
+  const normalized = gloss.trim().replace(/\s+/g, ' ');
+  const withoutLabels = normalized
+    .replace(/^\([^)]{1,60}\)\s*/, '')
+    .replace(LEADING_PART_OF_SPEECH_PATTERN, '');
+  const firstSense = withoutLabels.split(NEXT_PART_OF_SPEECH_PATTERN, 1)[0];
+  const firstSentence = firstSense.match(/^.*?[.!?](?:\s|$)/)?.[0] ?? firstSense;
+  const concise = truncateAtWord(firstSentence.trim(), MAX_DEFINITION_LENGTH);
+  if (!concise) return normalized;
+
+  const sentenceCase = `${concise[0].toLocaleUpperCase('en-US')}${concise.slice(1)}`;
+  return /[.!?…]$/.test(sentenceCase) ? sentenceCase : `${sentenceCase}.`;
+}
+
+function simplerEnglishFromDefinition(definition: string): string {
+  const phrase = definition.replace(/[.!?…]+$/, '');
+  if (!phrase) return definition;
+  return `${phrase[0].toLocaleLowerCase('en-US')}${phrase.slice(1)}`;
+}
+
+function visibleUsageNote(reason: string, candidateId: string): string {
+  const escapedCandidateId = candidateId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return reason
+    .replace(new RegExp(`\\s*\\(${escapedCandidateId}\\)`, 'gi'), '')
+    .replace(new RegExp(escapedCandidateId, 'gi'), '')
+    .replace(/\s+([.,!?;:])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 export function createLanguageCacheKey(
   sourceWord: string,
   sentenceContext: string,
@@ -71,13 +121,14 @@ export function createLanguageCacheKey(
   const normalized = [
     LANGUAGE_BROKER_MODEL,
     LANGUAGE_BROKER_PROMPT_VERSION,
+    CARD_CONTENT_VERSION,
     'freedict-2025.11.23+ecdict-bc015ed-ranked-v1',
     'B2',
     sourceWord.trim().toLocaleLowerCase('en-US'),
     sentenceContext.trim().replace(/\s+/g, ' '),
   ].join('|');
 
-  return `word-help:v3:${stableHash(normalized)}`;
+  return `word-help:v4:${stableHash(normalized)}`;
 }
 
 export function createBrokerCandidates(
@@ -115,7 +166,8 @@ function parseBrokerSelection(
     value.confidence < 0 ||
     value.confidence > 1 ||
     typeof value.reason !== 'string' ||
-    value.reason.trim() === ''
+    value.reason.trim() === '' ||
+    (value.selectedSense !== null && typeof value.selectedSense !== 'string')
   ) {
     throw new BrokerLanguageError(
       'The language broker returned malformed word help.',
@@ -134,7 +186,24 @@ function parseBrokerSelection(
       'response_invalid',
     );
   }
-  if (value.decision !== 'use_candidate' && candidateId !== null) {
+  const selectedCandidate = candidates.find(
+    (candidate) => candidate.id === candidateId,
+  );
+  const selectedSense =
+    typeof value.selectedSense === 'string' ? value.selectedSense.trim() : null;
+  if (
+    value.decision === 'use_candidate' &&
+    (!selectedSense || !selectedCandidate?.gloss.includes(selectedSense))
+  ) {
+    throw new BrokerLanguageError(
+      'The language broker returned an ungrounded definition.',
+      'response_invalid',
+    );
+  }
+  if (
+    value.decision !== 'use_candidate' &&
+    (candidateId !== null || selectedSense !== null)
+  ) {
     throw new BrokerLanguageError(
       'The language broker returned a conflicting selection.',
       'response_invalid',
@@ -146,6 +215,7 @@ function parseBrokerSelection(
     confidence: value.confidence,
     decision: value.decision as BrokerSelection['decision'],
     reason: value.reason.trim(),
+    selectedSense,
     tokenType: value.tokenType as BrokerSelection['tokenType'],
   };
 }
@@ -255,21 +325,22 @@ export async function requestBrokerWordHelp(
   // Pinyin is needed only after the broker accepts a Mandarin candidate.
   // Loading it here keeps the normal PDF reader startup bundle smaller.
   const { pinyin } = await import('pinyin-pro');
+  const definition = conciseDefinition(selection.selectedSense ?? selected.gloss);
 
   return {
     action: 'use_mandarin',
     cefr: 'B2',
     confidence: selection.confidence,
     contextualExample: sentenceContext,
-    definition: selected.gloss,
+    definition,
     displayWord: selected.value,
     id: `${request.match.headword}-${stableHash(resultIdentity)}`,
     lemma: request.match.headword,
     mandarin: selected.value,
     pinyin: pinyin(selected.value),
-    shortMeaning: selected.gloss,
-    simplerEnglish: selected.gloss,
+    shortMeaning: definition,
+    simplerEnglish: simplerEnglishFromDefinition(definition),
     sourceWord,
-    usageNote: selection.reason,
+    usageNote: visibleUsageNote(selection.reason, selected.id),
   };
 }
