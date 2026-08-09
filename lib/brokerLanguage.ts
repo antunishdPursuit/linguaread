@@ -118,18 +118,21 @@ function conciseDefinition(gloss: string): {
     LEADING_PART_OF_SPEECH_PATTERN,
   );
   const partOfSpeech = partOfSpeechMatch
-    ? PART_OF_SPEECH_LABELS[partOfSpeechMatch[1].toLowerCase()] ?? ''
+    ? PART_OF_SPEECH_LABELS[partOfSpeechMatch[1]?.toLowerCase() ?? ''] ?? ''
     : '';
   const withoutLabels = withoutParenthetical.replace(
     LEADING_PART_OF_SPEECH_PATTERN,
     '',
   );
-  const firstSense = withoutLabels.split(NEXT_PART_OF_SPEECH_PATTERN, 1)[0];
+  const firstSense =
+    withoutLabels.split(NEXT_PART_OF_SPEECH_PATTERN, 1)[0] ?? '';
   const firstSentence = firstSense.match(/^.*?[.!?](?:\s|$)/)?.[0] ?? firstSense;
   const concise = truncateAtWord(firstSentence.trim(), MAX_DEFINITION_LENGTH);
   if (!concise) return { definition: normalized, partOfSpeech };
 
-  const sentenceCase = `${concise[0].toLocaleUpperCase('en-US')}${concise.slice(1)}`;
+  const sentenceCase = `${concise
+    .charAt(0)
+    .toLocaleUpperCase('en-US')}${concise.slice(1)}`;
   return {
     definition: /[.!?…]$/.test(sentenceCase)
       ? sentenceCase

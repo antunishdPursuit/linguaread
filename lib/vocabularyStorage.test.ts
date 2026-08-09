@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  MOCK_LANGUAGE_RESULTS,
-} from './mockLanguage';
+import { MOCK_LANGUAGE_RESULT } from './mockLanguage';
 import {
   createWordOnlyVocabularyEntry,
   dictionaryHasWord,
@@ -14,7 +12,7 @@ import {
 } from './vocabularyStorage';
 
 describe('Dictionary state', () => {
-  const innovation = toVocabularyEntry(MOCK_LANGUAGE_RESULTS[0]);
+  const innovation = toVocabularyEntry(MOCK_LANGUAGE_RESULT);
 
   it('saves each entry once', () => {
     const saved = saveVocabularyEntry(
@@ -42,7 +40,7 @@ describe('Dictionary state', () => {
 
   it('replaces a word-only entry when its complete entry becomes available', () => {
     const wordOnly = createWordOnlyVocabularyEntry('innovation');
-    const ready = toVocabularyEntry(MOCK_LANGUAGE_RESULTS[0]);
+    const ready = toVocabularyEntry(MOCK_LANGUAGE_RESULT);
     const saved = saveVocabularyEntry(
       saveVocabularyEntry(EMPTY_VOCABULARY_STATE, wordOnly),
       ready,

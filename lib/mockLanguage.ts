@@ -111,4 +111,4 @@ export const MOCK_LANGUAGE_RESULTS: LanguageResult[] = [
   },
 ];
 
-export const MOCK_LANGUAGE_RESULT = MOCK_LANGUAGE_RESULTS[0];
+export const MOCK_LANGUAGE_RESULT: LanguageResult = MOCK_LANGUAGE_RESULTS[0]!;

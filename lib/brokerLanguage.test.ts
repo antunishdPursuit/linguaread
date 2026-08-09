@@ -116,7 +116,7 @@ describe('language broker client', () => {
       );
       const labeledMatch = {
         ...match,
-        translations: [{ ...match.translations[0], gloss: selectedSense }],
+        translations: [{ ...match.translations[0]!, gloss: selectedSense }],
       };
 
       const result = await requestBrokerWordHelp(

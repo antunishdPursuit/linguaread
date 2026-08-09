@@ -363,6 +363,7 @@ function App() {
     if (!element) return;
 
     const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return;
       setBaseViewerWidth(
         Math.max(280, Math.min(760, entry.contentRect.width - 48)),
       );
@@ -569,7 +570,7 @@ function App() {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) return;
+        if (!entry?.isIntersecting) return;
         setRenderedPageCount((current) =>
           Math.min(pageCount, current + 2),
         );
@@ -828,6 +829,7 @@ function App() {
             y >= candidate.top &&
             y <= candidate.top + candidate.height,
         ) ?? target.rectangles[0];
+      if (!rectangle) return null;
 
       return {
         rectangle: new DOMRect(

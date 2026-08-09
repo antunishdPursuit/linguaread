@@ -77,13 +77,13 @@ export function extractSentenceContext(
 
   while (
     sentenceStart > 0 &&
-    !SENTENCE_END_PATTERN.test(pageText[sentenceStart - 1])
+    !SENTENCE_END_PATTERN.test(pageText.charAt(sentenceStart - 1))
   ) {
     sentenceStart -= 1;
   }
   while (
     sentenceEnd < pageText.length &&
-    !SENTENCE_END_PATTERN.test(pageText[sentenceEnd])
+    !SENTENCE_END_PATTERN.test(pageText.charAt(sentenceEnd))
   ) {
     sentenceEnd += 1;
   }

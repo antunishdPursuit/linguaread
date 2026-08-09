@@ -144,7 +144,7 @@ describe('PDF word geometry tokenization', () => {
       },
     ];
     const cachedKeys = new Set([
-      createLanguageCacheKey(targets[0].word, targets[0].context),
+      createLanguageCacheKey(targets[0]!.word, targets[0]!.context),
     ]);
 
     expect(
