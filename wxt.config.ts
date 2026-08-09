@@ -10,7 +10,7 @@ export default defineConfig({
   manifest: {
     name: 'LinguaRead BETA',
     description:
-      'THIS EXTENSION IS FOR BETA TESTING. Read English PDFs with focused Mandarin and simpler-English support.',
+      'THIS EXTENSION IS FOR BETA TESTING. Read English PDFs with contextual Mandarin word help and a saved-word Dictionary.',
     minimum_chrome_version: '127',
     permissions: ['activeTab', 'tabs', 'storage', 'sidePanel'],
     host_permissions: [
