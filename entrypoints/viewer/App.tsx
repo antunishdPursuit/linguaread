@@ -31,8 +31,11 @@ import {
 import {
   forgetPdfWordHighlight,
   rememberPdfWordHighlight,
+  restoreCachedPdfWordHighlights,
   shouldHighlightPdfWord,
 } from '../../lib/pdfWordHighlights';
+import { readCachedLanguageResultKeys } from '../../lib/languageResultCache';
+import { createLanguageCacheKey } from '../../lib/brokerLanguage';
 import type { LanguageResult, VocabularyState } from '../../lib/types';
 import {
   createWordOnlyVocabularyEntry,
@@ -305,6 +308,8 @@ function App() {
   const wordCardRef = useRef<HTMLElement>(null);
   const activeCardRef = useRef<ActiveCard | null>(null);
   const highlightedWordIdsRef = useRef<Set<string>>(new Set());
+  const hiddenCachedWordIdsRef = useRef<Set<string>>(new Set());
+  const cachedLanguageResultKeysRef = useRef<Set<string>>(new Set());
   const wordHelpRequestRef = useRef(0);
   const wordTargetIndexesRef = useRef<Record<number, PdfWordSpatialIndex>>({});
   const wordTargetsByPageRef = useRef<Record<number, PdfWordTarget[]>>({});
@@ -386,6 +391,8 @@ function App() {
     wordHelpRequestRef.current += 1;
     activeCardRef.current = null;
     highlightedWordIdsRef.current = new Set();
+    hiddenCachedWordIdsRef.current = new Set();
+    cachedLanguageResultKeysRef.current = new Set();
     setActiveCard(null);
     clearPdfWordHighlights();
     setError('');
@@ -415,6 +422,33 @@ function App() {
     setFile(nextFile);
     setFileName(nextFile.name);
   }, []);
+
+  useEffect(() => {
+    if (!file) return;
+    let cancelled = false;
+
+    void readCachedLanguageResultKeys()
+      .then((cachedResultKeys) => {
+        if (cancelled) return;
+        cachedLanguageResultKeysRef.current = cachedResultKeys;
+        highlightedWordIdsRef.current = restoreCachedPdfWordHighlights(
+          highlightedWordIdsRef.current,
+          Object.values(wordTargetsByPageRef.current).flat(),
+          cachedResultKeys,
+          hiddenCachedWordIdsRef.current,
+        );
+        renderPdfWordHighlights(
+          wordTargetsByPageRef.current,
+          highlightedWordIdsRef.current,
+          activeCardRef.current?.target.id,
+        );
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [file]);
 
   useEffect(() => {
     const parameters = new URLSearchParams(window.location.search);
@@ -463,6 +497,12 @@ function App() {
         ...wordTargetIndexesRef.current,
         [pageNumber]: buildPdfWordSpatialIndex(targets),
       };
+      highlightedWordIdsRef.current = restoreCachedPdfWordHighlights(
+        highlightedWordIdsRef.current,
+        targets,
+        cachedLanguageResultKeysRef.current,
+        hiddenCachedWordIdsRef.current,
+      );
       const currentCard = activeCardRef.current;
       const refreshedActiveTarget = currentCard
         ? targets.find((target) => target.id === currentCard.target.id)
@@ -643,6 +683,9 @@ function App() {
       activeCardRef.current = resolvedCard;
       setActiveCard(resolvedCard);
       if (resolvedCard.status === 'ready') {
+        cachedLanguageResultKeysRef.current.add(
+          createLanguageCacheKey(target.word, target.context),
+        );
         highlightedWordIdsRef.current = rememberPdfWordHighlight(
           highlightedWordIdsRef.current,
           target.id,
@@ -807,7 +850,8 @@ function App() {
       const isRememberedWord = highlightedWordIdsRef.current.has(
         word.target.id,
       );
-      if (isActiveWord || isRememberedWord) {
+      if (isActiveWord) {
+        hiddenCachedWordIdsRef.current.add(word.target.id);
         highlightedWordIdsRef.current = forgetPdfWordHighlight(
           highlightedWordIdsRef.current,
           word.target.id,
@@ -819,6 +863,16 @@ function App() {
           wordTargetsByPageRef.current,
           highlightedWordIdsRef.current,
         );
+        return;
+      }
+
+      if (isRememberedWord) {
+        renderPdfWordHighlights(
+          wordTargetsByPageRef.current,
+          highlightedWordIdsRef.current,
+          word.target.id,
+        );
+        showCard(word.target, word.rectangle);
         return;
       }
 

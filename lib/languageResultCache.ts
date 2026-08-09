@@ -74,6 +74,14 @@ export async function readCachedLanguageResult(
   return cache[cacheKey] ?? null;
 }
 
+export async function readCachedLanguageResultKeys(
+  storage: LocalStorageArea = localStorageArea(),
+): Promise<Set<string>> {
+  const stored = await storage.get(LANGUAGE_RESULT_CACHE_STORAGE_KEY);
+  const cache = normalizeCache(stored[LANGUAGE_RESULT_CACHE_STORAGE_KEY]);
+  return new Set(Object.keys(cache));
+}
+
 export async function writeCachedLanguageResult(
   cacheKey: string,
   result: LanguageResult,

@@ -1,4 +1,27 @@
+import { createLanguageCacheKey } from './brokerLanguage';
+import type { PdfWordTarget } from './pdfWordGeometry';
+
 export type PdfWordHighlightTrail = ReadonlySet<string>;
+
+export function restoreCachedPdfWordHighlights(
+  trail: PdfWordHighlightTrail,
+  targets: readonly PdfWordTarget[],
+  cachedResultKeys: ReadonlySet<string>,
+  hiddenTargetIds: ReadonlySet<string> = new Set(),
+): Set<string> {
+  const nextTrail = new Set(trail);
+
+  for (const target of targets) {
+    if (
+      !hiddenTargetIds.has(target.id) &&
+      cachedResultKeys.has(createLanguageCacheKey(target.word, target.context))
+    ) {
+      nextTrail.add(target.id);
+    }
+  }
+
+  return nextTrail;
+}
 
 export function rememberPdfWordHighlight(
   trail: PdfWordHighlightTrail,

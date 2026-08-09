@@ -405,8 +405,8 @@ button:focus-visible,
   color: #fff;
   background: var(--color-word-highlight);
   text-decoration: underline;
-  text-decoration-color: currentColor;
-  text-decoration-thickness: 0.08em;
+  text-decoration-color: #fff;
+  text-decoration-thickness: 0.12em;
   text-underline-offset: 0.12em;
 }
 

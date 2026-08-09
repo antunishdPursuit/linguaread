@@ -10,8 +10,10 @@ import {
 import {
   forgetPdfWordHighlight,
   rememberPdfWordHighlight,
+  restoreCachedPdfWordHighlights,
   shouldHighlightPdfWord,
 } from './pdfWordHighlights';
+import { createLanguageCacheKey } from './brokerLanguage';
 
 describe('PDF word geometry tokenization', () => {
   it('finds separate words without changing their source offsets', () => {
@@ -124,5 +126,37 @@ describe('PDF word geometry tokenization', () => {
     trail = new Set();
     expect(shouldHighlightPdfWord(trail, '1-0-0')).toBe(false);
     expect(shouldHighlightPdfWord(trail, '2-0-0')).toBe(false);
+  });
+
+  it('restores exact cached contexts and keeps a user-hidden result off', () => {
+    const targets = [
+      {
+        context: 'Ferrari nearly doubled the number of vehicles shipped.',
+        id: '1-0-0',
+        rectangles: [],
+        word: 'doubled',
+      },
+      {
+        context: 'The recipe doubled the amount of sugar.',
+        id: '2-0-0',
+        rectangles: [],
+        word: 'doubled',
+      },
+    ];
+    const cachedKeys = new Set([
+      createLanguageCacheKey(targets[0].word, targets[0].context),
+    ]);
+
+    expect(
+      restoreCachedPdfWordHighlights(new Set(), targets, cachedKeys),
+    ).toEqual(new Set(['1-0-0']));
+    expect(
+      restoreCachedPdfWordHighlights(
+        new Set(),
+        targets,
+        cachedKeys,
+        new Set(['1-0-0']),
+      ),
+    ).toEqual(new Set());
   });
 });
