@@ -900,6 +900,12 @@ function App() {
   return (
     <main className={`app-shell ${file ? 'has-document' : 'is-empty'}`}>
       <header className="browser-bar">
+        <img
+          className="navigation-logo"
+          src="/branding/linguaread-logo.png"
+          alt="LinguaRead"
+        />
+
         <div className="document-summary">
           <div className="document-path" title={fileName}>
             <span>LinguaRead</span>
@@ -924,17 +930,6 @@ function App() {
           )}
         </div>
       </header>
-
-      {!isPdfHandoff && !file && (
-        <section className="document-header" aria-label="PDF controls">
-          <div>
-            <h1>LinguaRead</h1>
-            <p>Double-click a word to see more information.</p>
-          </div>
-
-          <FilePickerButton label="Choose PDF" onFile={handleFile} />
-        </section>
-      )}
 
       <p className="sr-only" aria-live="polite">
         {statusMessage}
@@ -969,13 +964,10 @@ function App() {
         </div>
       )}
 
-      <div
-        className={`reader-workspace ${file ? 'has-document' : 'is-empty'}`}
-      >
+      <div className={`reader-workspace ${file ? 'has-document' : 'is-empty'}`}>
         {file && (
           <section className="reader-control-bar" aria-label="Reader controls">
             <div className="reader-control-intro">
-              <strong>LinguaRead</strong>
               <span>Double-click a word to see more information.</span>
             </div>
 
@@ -1032,6 +1024,9 @@ function App() {
                 LinguaRead will display the PDF. Double-click a word to see more
                 information.
               </p>
+              {!isPdfHandoff && (
+                <FilePickerButton label="Choose PDF" onFile={handleFile} />
+              )}
             </div>
           ) : (
             <PdfReaderDocument

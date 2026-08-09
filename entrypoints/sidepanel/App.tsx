@@ -116,8 +116,13 @@ function App() {
     <main className="panel-shell">
       <header className="panel-header">
         <div className="brand">
-          <span aria-hidden="true">▣</span>
-          <h1>LinguaRead</h1>
+          <h1 className="brand-heading">
+            <img
+              className="brand-logo"
+              src="/branding/linguaread-logo.png"
+              alt="LinguaRead"
+            />
+          </h1>
         </div>
       </header>
 
