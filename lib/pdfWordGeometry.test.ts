@@ -8,6 +8,7 @@ import {
   toPageRelativeRectangle,
 } from './pdfWordGeometry';
 import {
+  forgetPdfWordHighlight,
   rememberPdfWordHighlight,
   shouldHighlightPdfWord,
 } from './pdfWordHighlights';
@@ -115,6 +116,10 @@ describe('PDF word geometry tokenization', () => {
 
     trail = rememberPdfWordHighlight(trail, '2-0-0');
     expect([...trail]).toEqual(['1-0-0', '2-0-0']);
+
+    trail = forgetPdfWordHighlight(trail, '1-0-0');
+    expect(shouldHighlightPdfWord(trail, '1-0-0')).toBe(false);
+    expect(shouldHighlightPdfWord(trail, '2-0-0')).toBe(true);
 
     trail = new Set();
     expect(shouldHighlightPdfWord(trail, '1-0-0')).toBe(false);

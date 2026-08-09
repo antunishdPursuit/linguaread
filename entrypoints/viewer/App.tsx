@@ -2,6 +2,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type Dispatch,
@@ -28,6 +29,7 @@ import {
   type PdfWordTarget,
 } from '../../lib/pdfWordGeometry';
 import {
+  forgetPdfWordHighlight,
   rememberPdfWordHighlight,
   shouldHighlightPdfWord,
 } from '../../lib/pdfWordHighlights';
@@ -101,7 +103,7 @@ function renderPdfWordHighlights(
 
   const registry = CSS.highlights as WritableHighlightRegistry | undefined;
   if (registry && typeof Highlight === 'function') {
-    if (activeTargetId) window.getSelection()?.removeAllRanges();
+    window.getSelection()?.removeAllRanges();
     if (ranges.length) {
       registry.set(ACTIVE_PDF_WORD_HIGHLIGHT, new Highlight(...ranges));
     } else {
@@ -117,9 +119,9 @@ function renderPdfWordHighlights(
     ? createPdfWordRange(activeTarget)
     : null;
   const selection = window.getSelection();
-  if (!selection || !activeRange) return;
+  if (!selection) return;
   selection.removeAllRanges();
-  selection.addRange(activeRange);
+  if (activeRange) selection.addRange(activeRange);
 }
 
 function getPdfWordViewportRectangle(
@@ -139,17 +141,19 @@ function getPdfWordViewportRectangle(
   return rectangle.width > 0 && rectangle.height > 0 ? rectangle : null;
 }
 
-function positionWordCard(rectangle: DOMRect): {
+function positionWordCard(rectangle: DOMRect, cardHeight = 260): {
   left: number;
   top: number;
 } {
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+
   return positionFloatingCard(
     rectangle,
     {
-      height: 260,
+      height: Math.min(cardHeight, Math.max(0, viewportHeight - 32)),
       width: Math.min(340, Math.max(0, window.innerWidth - 32)),
     },
-    { height: window.innerHeight, width: window.innerWidth },
+    { height: viewportHeight, width: window.innerWidth },
   );
 }
 
@@ -298,6 +302,7 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
 
 function App() {
   const viewerRef = useRef<HTMLDivElement>(null);
+  const wordCardRef = useRef<HTMLElement>(null);
   const activeCardRef = useRef<ActiveCard | null>(null);
   const highlightedWordIdsRef = useRef<Set<string>>(new Set());
   const wordHelpRequestRef = useRef(0);
@@ -322,6 +327,31 @@ function App() {
   const [statusMessage, setStatusMessage] = useState('');
   const [error, setError] = useState('');
   const [pdfError, setPdfError] = useState('');
+
+  useLayoutEffect(() => {
+    const card = wordCardRef.current;
+    if (!activeCard || !card) return;
+
+    const rectangle = getPdfWordViewportRectangle(activeCard.target);
+    if (!rectangle) return;
+
+    const nextPosition = positionWordCard(rectangle, card.scrollHeight);
+    if (
+      nextPosition.left === activeCard.left &&
+      nextPosition.top === activeCard.top
+    ) {
+      return;
+    }
+
+    const nextCard = { ...activeCard, ...nextPosition };
+    activeCardRef.current = nextCard;
+    setActiveCard(nextCard);
+  }, [
+    activeCard?.message,
+    activeCard?.result,
+    activeCard?.status,
+    activeCard?.target.id,
+  ]);
 
   useEffect(() => {
     const element = viewerRef.current;
@@ -442,7 +472,12 @@ function App() {
         const nextCard = {
           ...currentCard,
           target: refreshedActiveTarget,
-          ...(rectangle ? positionWordCard(rectangle) : {}),
+          ...(rectangle
+            ? positionWordCard(
+                rectangle,
+                wordCardRef.current?.scrollHeight,
+              )
+            : {}),
         };
         activeCardRef.current = nextCard;
         setActiveCard(nextCard);
@@ -686,7 +721,10 @@ function App() {
 
         const rectangle = getPdfWordViewportRectangle(currentCard.target);
         if (!rectangle) return;
-        const nextPosition = positionWordCard(rectangle);
+        const nextPosition = positionWordCard(
+          rectangle,
+          wordCardRef.current?.scrollHeight,
+        );
         if (
           nextPosition.left === currentCard.left &&
           nextPosition.top === currentCard.top
@@ -763,6 +801,27 @@ function App() {
       const word = findWordAtPoint(event);
       if (!word) return;
       event.preventDefault();
+
+      const isActiveWord =
+        activeCardRef.current?.target.id === word.target.id;
+      const isRememberedWord = highlightedWordIdsRef.current.has(
+        word.target.id,
+      );
+      if (isActiveWord || isRememberedWord) {
+        highlightedWordIdsRef.current = forgetPdfWordHighlight(
+          highlightedWordIdsRef.current,
+          word.target.id,
+        );
+        wordHelpRequestRef.current += 1;
+        activeCardRef.current = null;
+        setActiveCard(null);
+        renderPdfWordHighlights(
+          wordTargetsByPageRef.current,
+          highlightedWordIdsRef.current,
+        );
+        return;
+      }
+
       // Chrome's native double-click selection can expand after repeated
       // clicks. Rebuild the exact measured ranges instead.
       renderPdfWordHighlights(
@@ -991,6 +1050,7 @@ function App() {
 
       {activeCard && (
         <aside
+          ref={wordCardRef}
           className="word-card"
           style={{ left: activeCard.left, top: activeCard.top }}
           role="dialog"

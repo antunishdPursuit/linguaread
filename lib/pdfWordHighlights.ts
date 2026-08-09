@@ -7,6 +7,15 @@ export function rememberPdfWordHighlight(
   return new Set([...trail, targetId]);
 }
 
+export function forgetPdfWordHighlight(
+  trail: PdfWordHighlightTrail,
+  targetId: string,
+): Set<string> {
+  const nextTrail = new Set(trail);
+  nextTrail.delete(targetId);
+  return nextTrail;
+}
+
 export function shouldHighlightPdfWord(
   trail: PdfWordHighlightTrail,
   targetId: string,

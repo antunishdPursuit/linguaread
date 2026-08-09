@@ -478,7 +478,10 @@ button:focus-visible,
   position: fixed;
   z-index: 50;
   width: min(340px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
   padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   background: var(--color-surface);
