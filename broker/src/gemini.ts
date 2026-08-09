@@ -1,5 +1,5 @@
 import {
-  BROKER_MODEL,
+  BROKER_PROVIDER_MODEL,
   BROKER_PROMPT_VERSION,
   BrokerValidationError,
   parseBrokerResult,
@@ -145,7 +145,7 @@ function extractInteractionText(value: unknown): string {
 
 export function buildGeminiRequest(request: BrokerRequest) {
   return {
-    model: BROKER_MODEL,
+    model: BROKER_PROVIDER_MODEL,
     input: buildPrompt(request),
     response_format: {
       type: 'text',

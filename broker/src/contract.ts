@@ -1,4 +1,5 @@
-export const BROKER_MODEL = 'gemini-3.5-flash';
+export const BROKER_PROVIDER_MODEL = 'gemini-3.6-flash';
+export const BROKER_RESPONSE_MODEL = 'gemini-3.5-flash';
 export const BROKER_PROMPT_VERSION = 'candidate-selector-v2';
 export const MAX_REQUEST_BYTES = 12_000;
 

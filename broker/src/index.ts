@@ -1,6 +1,7 @@
 import {
-  BROKER_MODEL,
+  BROKER_PROVIDER_MODEL,
   BROKER_PROMPT_VERSION,
+  BROKER_RESPONSE_MODEL,
   BrokerValidationError,
   MAX_REQUEST_BYTES,
   parseBrokerRequest,
@@ -110,7 +111,7 @@ async function createCacheRequest(request: BrokerRequest): Promise<Request> {
   const canonicalValue = JSON.stringify({
     candidates: request.candidates,
     level: request.level,
-    model: BROKER_MODEL,
+    model: BROKER_PROVIDER_MODEL,
     promptVersion: BROKER_PROMPT_VERSION,
     sentence: request.sentence,
     word: request.word,
@@ -215,7 +216,7 @@ async function handleWordHelp(
   try {
     const result = await requestProvider(parsedRequest, env, dependencies);
     const responseBody = {
-      model: BROKER_MODEL,
+      model: BROKER_RESPONSE_MODEL,
       promptVersion: BROKER_PROMPT_VERSION,
       result,
     };
