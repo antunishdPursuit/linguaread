@@ -12,12 +12,27 @@
     }
   },
   "vars": {
-    "ALLOWED_ORIGINS": "chrome-extension://gamafmmbahlngeohnckiafmpmmgodggk,chrome-extension://ginclnkpgbmnjbmlefdkhiokcnplkcjm"
+    "ALLOWED_ORIGINS": "chrome-extension://gamafmmbahlngeohnckiafmpmmgodggk,chrome-extension://ginclnkpgbmnjbmlefdkhiokcnplkcjm",
+    "DAILY_ALLOWANCE_ENABLED": "true"
   },
   "secrets": {
     "required": [
       "GEMINI_API_KEY"
     ]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "DAILY_ALLOWANCE",
+        "class_name": "DailyAnalysisAllowance"
+      }
+    ]
+  },
+  "exports": {
+    "DailyAnalysisAllowance": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
   },
   "ratelimits": [
     {

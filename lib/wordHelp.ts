@@ -28,6 +28,7 @@ export type WordHelpOutcome =
       message: string;
       reason:
         | 'candidate_rejected'
+        | 'daily_limit_reached'
         | 'dictionary_unavailable'
         | 'no_match'
         | 'provider_error';
@@ -88,6 +89,18 @@ function waitForBrokerRetry(): Promise<void> {
   return new Promise((resolve) => {
     globalThis.setTimeout(resolve, BROKER_RETRY_DELAY_MS);
   });
+}
+
+function dailyLimitMessage(resetAt?: string): string {
+  const resetTime = resetAt ? new Date(resetAt) : null;
+  const resetLabel =
+    resetTime && Number.isFinite(resetTime.getTime())
+      ? new Intl.DateTimeFormat(undefined, {
+          hour: 'numeric',
+          minute: '2-digit',
+        }).format(resetTime)
+      : 'the daily reset';
+  return `You've used today's 3 word analyses. More will be available at ${resetLabel}. Saved and previously analyzed words are still available.`;
 }
 
 async function requestOnce(
@@ -195,6 +208,16 @@ export async function loadWordHelp(
     );
     return { result, source: 'broker', status: 'ready' };
   } catch (error) {
+    if (
+      error instanceof BrokerLanguageError &&
+      error.code === 'daily_limit_reached'
+    ) {
+      return {
+        message: dailyLimitMessage(error.resetAt),
+        reason: 'daily_limit_reached',
+        status: 'error',
+      };
+    }
     if (
       error instanceof BrokerLanguageError &&
       error.code === 'candidate_rejected'

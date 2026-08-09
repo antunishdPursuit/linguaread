@@ -94,9 +94,46 @@ function createContext() {
   };
 }
 
+function createDailyAllowance() {
+  const reservations = new Set<string>();
+  let completed = 0;
+  const stub = {
+    commit: vi.fn(async (reservationId: string) => {
+      const committed = reservations.delete(reservationId);
+      if (committed) completed += 1;
+      return { committed, remaining: Math.max(0, 3 - completed) };
+    }),
+    release: vi.fn(async (reservationId: string) => {
+      reservations.delete(reservationId);
+    }),
+    reserve: vi.fn(async (reservationId: string) => {
+      if (completed + reservations.size >= 3) {
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: '2026-08-10T00:00:00.000Z',
+        };
+      }
+      reservations.add(reservationId);
+      return {
+        allowed: true,
+        remaining: Math.max(0, 3 - completed - reservations.size),
+        resetAt: '2026-08-10T00:00:00.000Z',
+      };
+    }),
+  };
+  return {
+    getByName: vi.fn(() => stub),
+    stub,
+  };
+}
+
 function createEnv(rateLimitSuccess = true, key = apiKey) {
+  const dailyAllowance = createDailyAllowance();
   return {
     ALLOWED_ORIGIN: allowedOrigin,
+    DAILY_ALLOWANCE: dailyAllowance,
+    DAILY_ALLOWANCE_ENABLED: 'true',
     GEMINI_API_KEY: key,
     RATE_LIMITER: {
       limit: vi.fn().mockResolvedValue({ success: rateLimitSuccess }),
@@ -105,19 +142,18 @@ function createEnv(rateLimitSuccess = true, key = apiKey) {
 }
 
 function successfulProvider() {
-  return vi.fn<typeof fetch>().mockResolvedValue(
+  return vi.fn<typeof fetch>().mockImplementation(async () =>
     new Response(
       JSON.stringify(interactionWithResult(validProviderResult())),
       {
         headers: { 'Content-Type': 'application/json' },
         status: 200,
       },
-    ),
-  );
+    ));
 }
 
 describe('Cloudflare language broker', () => {
-  it('validates, calls Gemini 3.5 Flash, and returns a bounded result', async () => {
+  it('validates, calls Gemini 3.6 Flash, and returns a bounded result', async () => {
     const providerFetch = successfulProvider();
     const context = createContext();
 
@@ -141,6 +177,7 @@ describe('Cloudflare language broker', () => {
       'x-goog-api-key': apiKey,
     });
     expect(providerOptions?.body).not.toContain(apiKey);
+    expect(providerOptions?.body).toContain('gemini-3.6-flash');
     expect(providerOptions?.body).toContain('freedict:innovation:1');
   });
 
@@ -148,10 +185,11 @@ describe('Cloudflare language broker', () => {
     const providerFetch = successfulProvider();
     const cache = createCache();
     const firstContext = createContext();
+    const env = createEnv();
 
     const first = await handleRequest(
       createRequest(),
-      createEnv(),
+      env,
       firstContext,
       { cache, fetch: providerFetch },
     );
@@ -160,7 +198,7 @@ describe('Cloudflare language broker', () => {
 
     const second = await handleRequest(
       createRequest(),
-      createEnv(),
+      env,
       createContext(),
       { cache, fetch: providerFetch },
     );
@@ -168,6 +206,69 @@ describe('Cloudflare language broker', () => {
     expect(second.status).toBe(200);
     expect(second.headers.get('X-LinguaRead-Cache')).toBe('HIT');
     expect(providerFetch).toHaveBeenCalledTimes(1);
+    expect(env.DAILY_ALLOWANCE.stub.reserve).toHaveBeenCalledOnce();
+  });
+
+  it('allows three valid analyses, blocks the fourth, and releases a failed provider reservation', async () => {
+    const env = createEnv();
+    const providerFetch = successfulProvider();
+
+    for (let index = 0; index < 3; index += 1) {
+      const response = await handleRequest(
+        createRequest(),
+        env,
+        createContext(),
+        { fetch: providerFetch },
+      );
+      expect(response.status).toBe(200);
+    }
+
+    const denied = await handleRequest(
+      createRequest(),
+      env,
+      createContext(),
+      { fetch: providerFetch },
+    );
+    expect(denied.status).toBe(429);
+    await expect(denied.json()).resolves.toEqual({
+      error: 'daily_limit_reached',
+      limit: 3,
+      resetAt: '2026-08-10T00:00:00.000Z',
+    });
+    expect(providerFetch).toHaveBeenCalledTimes(3);
+
+    const retryEnv = createEnv();
+    const recoveringProvider = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response('temporary failure', { status: 500 }))
+      .mockImplementationOnce(successfulProvider());
+    const failed = await handleRequest(
+      createRequest(),
+      retryEnv,
+      createContext(),
+      { fetch: recoveringProvider },
+    );
+    expect(failed.status).toBe(502);
+    const recovered = await handleRequest(
+      createRequest(),
+      retryEnv,
+      createContext(),
+      { fetch: recoveringProvider },
+    );
+    expect(recovered.status).toBe(200);
+    expect(retryEnv.DAILY_ALLOWANCE.stub.release).toHaveBeenCalledOnce();
+    expect(retryEnv.DAILY_ALLOWANCE.stub.commit).toHaveBeenCalledOnce();
+
+    const disabledEnv = createEnv();
+    disabledEnv.DAILY_ALLOWANCE_ENABLED = 'false';
+    const bypassed = await handleRequest(
+      createRequest(),
+      disabledEnv,
+      createContext(),
+      { fetch: successfulProvider() },
+    );
+    expect(bypassed.status).toBe(200);
+    expect(disabledEnv.DAILY_ALLOWANCE.getByName).not.toHaveBeenCalled();
   });
 
   it('rejects unexpected request fields before calling the provider', async () => {

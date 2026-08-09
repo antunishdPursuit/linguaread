@@ -12,6 +12,13 @@ import {
   GeminiRequestError,
   requestGeminiSelection,
 } from './gemini';
+import {
+  DAILY_ANALYSIS_LIMIT,
+  DailyAnalysisAllowance,
+  type DailyAllowanceReservation,
+} from './dailyAllowance';
+
+export { DailyAnalysisAllowance };
 
 const WORD_HELP_PATH = '/v1/word-help';
 const CLIENT_ID_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
@@ -21,9 +28,20 @@ type RateLimiter = {
   limit(options: { key: string }): Promise<{ success: boolean }>;
 };
 
+type DailyAllowanceStub = Pick<
+  DailyAnalysisAllowance,
+  'commit' | 'release' | 'reserve'
+>;
+
+type DailyAllowanceNamespace = {
+  getByName(name: string): DailyAllowanceStub;
+};
+
 type WorkerEnv = {
   ALLOWED_ORIGIN?: string;
   ALLOWED_ORIGINS?: string;
+  DAILY_ALLOWANCE: DailyAllowanceNamespace;
+  DAILY_ALLOWANCE_ENABLED: string;
   GEMINI_API_KEY: string;
   RATE_LIMITER: RateLimiter;
 };
@@ -33,15 +51,22 @@ type CacheLike = {
   put(request: Request, response: Response): Promise<void>;
 };
 
+type CacheStorageLike = {
+  default?: CacheLike;
+};
+
 type BrokerDependencies = {
   cache?: CacheLike;
   fetch: typeof fetch;
+  now: () => number;
   providerTimeoutMs: number;
 };
 
 type ExecutionContextLike = {
   waitUntil(promise: Promise<unknown>): void;
 };
+
+class DailyAllowanceUnavailableError extends Error {}
 
 function jsonResponse(
   body: unknown,
@@ -73,10 +98,19 @@ function errorResponse(
 }
 
 function resolveDefaultCache(): CacheLike | undefined {
-  const cacheStorage = globalThis.caches as CacheStorage & {
-    default?: CacheLike;
-  } | undefined;
+  const cacheStorage = (globalThis as { caches?: CacheStorageLike })
+    .caches;
   return cacheStorage?.default;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
 }
 
 function configuredOrigins(env: WorkerEnv): Set<string> {
@@ -107,6 +141,12 @@ function requireAllowedOrigin(request: Request, env: WorkerEnv): string {
   return origin;
 }
 
+function requireDailyAllowanceSetting(env: WorkerEnv): boolean {
+  if (env.DAILY_ALLOWANCE_ENABLED === 'true') return true;
+  if (env.DAILY_ALLOWANCE_ENABLED === 'false') return false;
+  throw new Error('server_not_configured');
+}
+
 async function createCacheRequest(request: BrokerRequest): Promise<Request> {
   const canonicalValue = JSON.stringify({
     candidates: request.candidates,
@@ -116,17 +156,28 @@ async function createCacheRequest(request: BrokerRequest): Promise<Request> {
     sentence: request.sentence,
     word: request.word,
   });
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(canonicalValue),
-  );
-  const hash = Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, '0'),
-  ).join('');
+  const hash = await sha256Hex(canonicalValue);
 
   // The cache key contains only a digest so selected PDF text is not placed in
   // a URL, log, or Cloudflare cache index.
   return new Request(`https://linguaread.internal/word-help/${hash}`);
+}
+
+type ReservedDailyAllowance = DailyAllowanceReservation & {
+  reservationId: string;
+  stub: DailyAllowanceStub;
+};
+
+async function reserveDailyAllowance(
+  clientId: string,
+  env: WorkerEnv,
+  nowMs: number,
+): Promise<ReservedDailyAllowance> {
+  const installationKey = await sha256Hex(clientId);
+  const stub = env.DAILY_ALLOWANCE.getByName(installationKey);
+  const reservationId = crypto.randomUUID();
+  const reservation = await stub.reserve(reservationId, nowMs);
+  return { ...reservation, reservationId, stub };
 }
 
 async function readJsonBody(request: Request): Promise<unknown> {
@@ -180,6 +231,7 @@ async function handleWordHelp(
   context: ExecutionContextLike,
   dependencies: BrokerDependencies,
   origin: string,
+  dailyAllowanceEnabled: boolean,
 ): Promise<Response> {
   if (!request.headers.get('Content-Type')?.startsWith('application/json')) {
     return errorResponse('content_type_required', 415, origin);
@@ -213,8 +265,43 @@ async function handleWordHelp(
     });
   }
 
+  let allowance: ReservedDailyAllowance | undefined;
+  if (dailyAllowanceEnabled) {
+    try {
+      allowance = await reserveDailyAllowance(
+        clientId,
+        env,
+        dependencies.now(),
+      );
+    } catch {
+      return errorResponse('allowance_unavailable', 503, origin);
+    }
+    if (!allowance.allowed) {
+      return jsonResponse(
+        {
+          error: 'daily_limit_reached',
+          limit: DAILY_ANALYSIS_LIMIT,
+          resetAt: allowance.resetAt,
+        },
+        429,
+        origin,
+      );
+    }
+  }
+
+  let allowanceCommitted = false;
   try {
     const result = await requestProvider(parsedRequest, env, dependencies);
+    if (allowance) {
+      const commit = await allowance.stub.commit(
+        allowance.reservationId,
+        dependencies.now(),
+      );
+      if (!commit.committed) {
+        throw new DailyAllowanceUnavailableError();
+      }
+      allowanceCommitted = true;
+    }
     const responseBody = {
       model: BROKER_RESPONSE_MODEL,
       promptVersion: BROKER_PROMPT_VERSION,
@@ -232,6 +319,11 @@ async function handleWordHelp(
       'X-LinguaRead-Cache': 'MISS',
     });
   } catch (error) {
+    if (allowance && !allowanceCommitted) {
+      await allowance.stub
+        .release(allowance.reservationId, dependencies.now())
+        .catch(() => undefined);
+    }
     if (error instanceof DOMException && error.name === 'AbortError') {
       return errorResponse('provider_timeout', 504, origin);
     }
@@ -240,6 +332,9 @@ async function handleWordHelp(
     }
     if (error instanceof Error && error.message === 'server_not_configured') {
       return errorResponse('server_not_configured', 503, origin);
+    }
+    if (error instanceof DailyAllowanceUnavailableError) {
+      return errorResponse('allowance_unavailable', 503, origin);
     }
     if (error instanceof GeminiRequestError) {
       if (error.status === 400) {
@@ -293,6 +388,7 @@ export async function handleRequest(
   const resolvedDependencies: BrokerDependencies = {
     cache: dependencies.cache ?? resolveDefaultCache(),
     fetch: dependencies.fetch ?? fetch,
+    now: dependencies.now ?? Date.now,
     providerTimeoutMs:
       dependencies.providerTimeoutMs ?? PROVIDER_TIMEOUT_MS,
   };
@@ -303,8 +399,10 @@ export async function handleRequest(
   }
 
   let origin: string;
+  let dailyAllowanceEnabled: boolean;
   try {
     origin = requireAllowedOrigin(request, env);
+    dailyAllowanceEnabled = requireDailyAllowanceSetting(env);
   } catch (error) {
     if (error instanceof Error && error.message === 'server_not_configured') {
       return errorResponse('server_not_configured', 503);
@@ -338,6 +436,7 @@ export async function handleRequest(
     context,
     resolvedDependencies,
     origin,
+    dailyAllowanceEnabled,
   );
 }
 

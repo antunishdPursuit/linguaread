@@ -80,10 +80,12 @@ export class BrokerLanguageError extends Error {
     message: string,
     readonly code:
       | 'candidate_rejected'
+      | 'daily_limit_reached'
       | 'invalid_input'
       | 'request_failed'
       | 'response_invalid',
     readonly status?: number,
+    readonly resetAt?: string,
   ) {
     super(message);
     this.name = 'BrokerLanguageError';
@@ -315,6 +317,25 @@ export async function requestBrokerWordHelp(
   });
 
   if (!response.ok) {
+    if (response.status === 429) {
+      const errorBody: unknown = await response
+        .clone()
+        .json()
+        .catch(() => null);
+      if (
+        isRecord(errorBody) &&
+        errorBody.error === 'daily_limit_reached' &&
+        typeof errorBody.resetAt === 'string' &&
+        Number.isFinite(Date.parse(errorBody.resetAt))
+      ) {
+        throw new BrokerLanguageError(
+          'The daily word-analysis limit has been reached.',
+          'daily_limit_reached',
+          429,
+          errorBody.resetAt,
+        );
+      }
+    }
     throw new BrokerLanguageError(
       `The language broker returned status ${response.status}.`,
       'request_failed',

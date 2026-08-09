@@ -167,6 +167,32 @@ describe('language broker client', () => {
     ).rejects.toMatchObject({ code: 'candidate_rejected' });
   });
 
+  it('returns the daily reset without treating the allowance as a retryable provider failure', async () => {
+    const resetAt = '2026-08-10T00:00:00.000Z';
+    const fetchImplementation = vi.fn(async () =>
+      Response.json(
+        { error: 'daily_limit_reached', limit: 3, resetAt },
+        { status: 429 },
+      ),
+    );
+
+    await expect(
+      requestBrokerWordHelp(
+        {
+          match,
+          sentenceContext: 'The company invested in producing automobiles.',
+          sourceWord: 'producing',
+        },
+        fetchImplementation,
+        storage(),
+      ),
+    ).rejects.toMatchObject({
+      code: 'daily_limit_reached',
+      resetAt,
+      status: 429,
+    });
+  });
+
   it('creates a stable cache key for the approved broker version', () => {
     expect(
       createLanguageCacheKey(
