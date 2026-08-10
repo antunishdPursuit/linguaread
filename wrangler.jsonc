@@ -12,7 +12,7 @@
     }
   },
   "vars": {
-    "ALLOWED_ORIGINS": "chrome-extension://gamafmmbahlngeohnckiafmpmmgodggk,chrome-extension://ginclnkpgbmnjbmlefdkhiokcnplkcjm",
+    "ALLOWED_ORIGINS": "chrome-extension://ginclnkpgbmnjbmlefdkhiokcnplkcjm",
     "DAILY_ALLOWANCE_ENABLED": "true"
   },
   "secrets": {

@@ -5,7 +5,7 @@ import type {
 import type { LanguageResult } from './types';
 
 export const LANGUAGE_BROKER_URL =
-  'https://linguaread-language-broker.enhancereactapptest.workers.dev/v1/word-help';
+  import.meta.env.VITE_LINGUAREAD_LANGUAGE_BROKER_URL?.trim() ?? '';
 export const LANGUAGE_BROKER_MODEL = 'gemini-3.5-flash';
 export const LANGUAGE_BROKER_PROMPT_VERSION = 'candidate-selector-v2';
 export const LANGUAGE_BROKER_CLIENT_STORAGE_KEY =
