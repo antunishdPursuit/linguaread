@@ -2,7 +2,7 @@
   "name": "linguaread",
   "description": "A PDF-first Chrome reading aid for Mandarin-speaking English learners.",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "wxt",
