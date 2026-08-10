@@ -15,9 +15,9 @@ export type LanguageResult = {
   id: string;
   lemma: string;
   mandarin: string;
+  partOfSpeech: string;
   pinyin: string;
   shortMeaning: string;
-  simplerEnglish: string;
   sourceWord: string;
   usageNote: string;
 };
@@ -32,9 +32,9 @@ export type VocabularyEntry = Pick<
   | 'id'
   | 'lemma'
   | 'mandarin'
+  | 'partOfSpeech'
   | 'pinyin'
   | 'shortMeaning'
-  | 'simplerEnglish'
   | 'sourceWord'
   | 'usageNote'
 >;

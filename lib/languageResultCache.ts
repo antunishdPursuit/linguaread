@@ -24,9 +24,9 @@ function parseLanguageResult(value: unknown): LanguageResult | null {
     'id',
     'lemma',
     'mandarin',
+    'partOfSpeech',
     'pinyin',
     'shortMeaning',
-    'simplerEnglish',
     'sourceWord',
     'usageNote',
   ] as const;
@@ -34,7 +34,7 @@ function parseLanguageResult(value: unknown): LanguageResult | null {
     !stringFields.every(
       (field) =>
         typeof candidate[field] === 'string' &&
-        candidate[field].trim() !== '',
+        (field === 'partOfSpeech' || candidate[field].trim() !== ''),
     ) ||
     !['keep_english', 'use_mandarin', 'use_synonym'].includes(
       String(candidate.action),
@@ -72,6 +72,14 @@ export async function readCachedLanguageResult(
   const stored = await storage.get(LANGUAGE_RESULT_CACHE_STORAGE_KEY);
   const cache = normalizeCache(stored[LANGUAGE_RESULT_CACHE_STORAGE_KEY]);
   return cache[cacheKey] ?? null;
+}
+
+export async function readCachedLanguageResultKeys(
+  storage: LocalStorageArea = localStorageArea(),
+): Promise<Set<string>> {
+  const stored = await storage.get(LANGUAGE_RESULT_CACHE_STORAGE_KEY);
+  const cache = normalizeCache(stored[LANGUAGE_RESULT_CACHE_STORAGE_KEY]);
+  return new Set(Object.keys(cache));
 }
 
 export async function writeCachedLanguageResult(

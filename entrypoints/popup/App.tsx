@@ -172,10 +172,13 @@ function App() {
   return (
     <main className="popup-shell">
       <header>
-        <span className="pdf-icon" aria-hidden="true">
-          PDF
-        </span>
-        <h1>LinguaRead</h1>
+        <h1 className="brand-heading">
+          <img
+            className="brand-logo"
+            src="/branding/linguaread-logo.png"
+            alt="LinguaRead"
+          />
+        </h1>
       </header>
 
       {activeContext?.kind === 'pdf' && (

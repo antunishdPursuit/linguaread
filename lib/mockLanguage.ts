@@ -12,8 +12,8 @@ export const MOCK_LANGUAGE_RESULTS: LanguageResult[] = [
     action: 'use_mandarin',
     displayWord: '创新',
     mandarin: '创新',
+    partOfSpeech: 'N',
     pinyin: 'chuàng xīn',
-    simplerEnglish: 'new idea',
     shortMeaning: 'a new idea or way of doing something',
     definition: 'a new idea, method, or way of doing something',
     contextualExample:
@@ -30,8 +30,8 @@ export const MOCK_LANGUAGE_RESULTS: LanguageResult[] = [
     action: 'use_synonym',
     displayWord: 'managed',
     mandarin: '受控的',
+    partOfSpeech: 'ADJ',
     pinyin: 'shòu kòng de',
-    simplerEnglish: 'managed',
     shortMeaning: 'kept within planned limits',
     definition: 'managed or limited so that it stays within a plan',
     contextualExample: 'Ferrari was pursuing a strategy of controlled growth.',
@@ -47,8 +47,8 @@ export const MOCK_LANGUAGE_RESULTS: LanguageResult[] = [
     action: 'use_mandarin',
     displayWord: '工艺',
     mandarin: '工艺',
+    partOfSpeech: 'N',
     pinyin: 'gōng yì',
-    simplerEnglish: 'making skill',
     shortMeaning: 'skill in making something well',
     definition: 'the skill and care used to make a high-quality object',
     contextualExample:
@@ -64,8 +64,8 @@ export const MOCK_LANGUAGE_RESULTS: LanguageResult[] = [
     action: 'use_synonym',
     displayWord: 'groundbreaking',
     mandarin: '革命性的',
+    partOfSpeech: 'ADJ',
     pinyin: 'gé mìng xìng de',
-    simplerEnglish: 'groundbreaking',
     shortMeaning: 'causing a major change',
     definition: 'causing or relating to a very large change',
     contextualExample:
@@ -82,8 +82,8 @@ export const MOCK_LANGUAGE_RESULTS: LanguageResult[] = [
     action: 'use_mandarin',
     displayWord: '独特性',
     mandarin: '独特性',
+    partOfSpeech: 'N',
     pinyin: 'dú tè xìng',
-    simplerEnglish: 'being limited',
     shortMeaning: 'the quality of being limited or special',
     definition: 'the quality of being available only to a small group',
     contextualExample:
@@ -100,8 +100,8 @@ export const MOCK_LANGUAGE_RESULTS: LanguageResult[] = [
     action: 'use_synonym',
     displayWord: 'aimed',
     mandarin: '渴望',
+    partOfSpeech: 'V',
     pinyin: 'kě wàng',
-    simplerEnglish: 'aimed',
     shortMeaning: 'strongly hoped to achieve something',
     definition: 'had a strong hope or ambition to achieve something',
     contextualExample:
@@ -111,4 +111,4 @@ export const MOCK_LANGUAGE_RESULTS: LanguageResult[] = [
   },
 ];
 
-export const MOCK_LANGUAGE_RESULT = MOCK_LANGUAGE_RESULTS[0];
+export const MOCK_LANGUAGE_RESULT: LanguageResult = MOCK_LANGUAGE_RESULTS[0]!;

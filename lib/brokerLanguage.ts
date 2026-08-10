@@ -5,13 +5,47 @@ import type {
 import type { LanguageResult } from './types';
 
 export const LANGUAGE_BROKER_URL =
-  'https://linguaread-language-broker.enhancereactapptest.workers.dev/v1/word-help';
+  import.meta.env.VITE_LINGUAREAD_LANGUAGE_BROKER_URL?.trim() ?? '';
 export const LANGUAGE_BROKER_MODEL = 'gemini-3.5-flash';
-export const LANGUAGE_BROKER_PROMPT_VERSION = 'candidate-selector-v1';
+export const LANGUAGE_BROKER_PROMPT_VERSION = 'candidate-selector-v2';
 export const LANGUAGE_BROKER_CLIENT_STORAGE_KEY =
   'linguaread-broker-client-v1';
 
 const MAX_CANDIDATES = 12;
+const CARD_CONTENT_VERSION = 'concise-card-v3';
+const MAX_DEFINITION_LENGTH = 160;
+const PART_OF_SPEECH =
+  '(?:n|v|vt|vi|adj|adv|prep|pron|conj|interj|num|art|aux|modal|phr)';
+const LEADING_PART_OF_SPEECH_PATTERN = new RegExp(
+  `^(${PART_OF_SPEECH})\\.?\\s+`,
+  'i',
+);
+const NEXT_PART_OF_SPEECH_PATTERN = new RegExp(
+  `\\s+(?=${PART_OF_SPEECH}\\.?\\s)`,
+  'i',
+);
+const ANY_PART_OF_SPEECH_PATTERN = new RegExp(
+  `(?:^|\\s)(${PART_OF_SPEECH})\\.?\\s+`,
+  'gi',
+);
+
+const PART_OF_SPEECH_LABELS: Record<string, string> = {
+  adj: 'ADJ',
+  adv: 'ADV',
+  art: 'ART',
+  aux: 'AUX',
+  conj: 'CONJ',
+  interj: 'INTERJ',
+  modal: 'MODAL',
+  n: 'N',
+  num: 'NUM',
+  phr: 'PHR',
+  prep: 'PREP',
+  pron: 'PRON',
+  v: 'V',
+  vi: 'V',
+  vt: 'V',
+};
 
 export type BrokerCandidate = {
   gloss: string;
@@ -25,6 +59,7 @@ type BrokerSelection = {
   confidence: number;
   decision: 'keep_english' | 'none_fit' | 'use_candidate';
   reason: string;
+  selectedSense: string | null;
   tokenType: 'acronym' | 'common_word' | 'other' | 'proper_name';
 };
 
@@ -45,10 +80,12 @@ export class BrokerLanguageError extends Error {
     message: string,
     readonly code:
       | 'candidate_rejected'
+      | 'daily_limit_reached'
       | 'invalid_input'
       | 'request_failed'
       | 'response_invalid',
     readonly status?: number,
+    readonly resetAt?: string,
   ) {
     super(message);
     this.name = 'BrokerLanguageError';
@@ -64,6 +101,71 @@ function stableHash(value: string): string {
   return (hash >>> 0).toString(36);
 }
 
+function truncateAtWord(value: string, maximumLength: number): string {
+  if (value.length <= maximumLength) return value;
+  const clipped = value.slice(0, maximumLength + 1);
+  const lastSpace = clipped.lastIndexOf(' ');
+  return `${clipped.slice(0, lastSpace > 0 ? lastSpace : maximumLength).trim()}…`;
+}
+
+function conciseDefinition(gloss: string): {
+  definition: string;
+  partOfSpeech: string;
+} {
+  const normalized = gloss.trim().replace(/\s+/g, ' ');
+  const withoutParenthetical = normalized.replace(/^\([^)]{1,60}\)\s*/, '');
+  const partOfSpeechMatch = withoutParenthetical.match(
+    LEADING_PART_OF_SPEECH_PATTERN,
+  );
+  const partOfSpeech = partOfSpeechMatch
+    ? PART_OF_SPEECH_LABELS[partOfSpeechMatch[1]?.toLowerCase() ?? ''] ?? ''
+    : '';
+  const withoutLabels = withoutParenthetical.replace(
+    LEADING_PART_OF_SPEECH_PATTERN,
+    '',
+  );
+  const firstSense =
+    withoutLabels.split(NEXT_PART_OF_SPEECH_PATTERN, 1)[0] ?? '';
+  const firstSentence = firstSense.match(/^.*?[.!?](?:\s|$)/)?.[0] ?? firstSense;
+  const concise = truncateAtWord(firstSentence.trim(), MAX_DEFINITION_LENGTH);
+  if (!concise) return { definition: normalized, partOfSpeech };
+
+  const sentenceCase = `${concise
+    .charAt(0)
+    .toLocaleUpperCase('en-US')}${concise.slice(1)}`;
+  return {
+    definition: /[.!?…]$/.test(sentenceCase)
+      ? sentenceCase
+      : `${sentenceCase}.`,
+    partOfSpeech,
+  };
+}
+
+function partOfSpeechForSense(gloss: string, selectedSense: string): string {
+  const directLabel = conciseDefinition(selectedSense).partOfSpeech;
+  if (directLabel) return directLabel;
+
+  const senseIndex = gloss
+    .toLocaleLowerCase('en-US')
+    .indexOf(selectedSense.toLocaleLowerCase('en-US'));
+  if (senseIndex < 0) return '';
+
+  const precedingGloss = gloss.slice(0, senseIndex);
+  const matches = [...precedingGloss.matchAll(ANY_PART_OF_SPEECH_PATTERN)];
+  const nearestLabel = matches.at(-1)?.[1]?.toLowerCase();
+  return nearestLabel ? PART_OF_SPEECH_LABELS[nearestLabel] ?? '' : '';
+}
+
+function visibleUsageNote(reason: string, candidateId: string): string {
+  const escapedCandidateId = candidateId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return reason
+    .replace(new RegExp(`\\s*\\(${escapedCandidateId}\\)`, 'gi'), '')
+    .replace(new RegExp(escapedCandidateId, 'gi'), '')
+    .replace(/\s+([.,!?;:])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 export function createLanguageCacheKey(
   sourceWord: string,
   sentenceContext: string,
@@ -71,13 +173,14 @@ export function createLanguageCacheKey(
   const normalized = [
     LANGUAGE_BROKER_MODEL,
     LANGUAGE_BROKER_PROMPT_VERSION,
+    CARD_CONTENT_VERSION,
     'freedict-2025.11.23+ecdict-bc015ed-ranked-v1',
     'B2',
     sourceWord.trim().toLocaleLowerCase('en-US'),
     sentenceContext.trim().replace(/\s+/g, ' '),
   ].join('|');
 
-  return `word-help:v3:${stableHash(normalized)}`;
+  return `word-help:v4:${stableHash(normalized)}`;
 }
 
 export function createBrokerCandidates(
@@ -115,7 +218,8 @@ function parseBrokerSelection(
     value.confidence < 0 ||
     value.confidence > 1 ||
     typeof value.reason !== 'string' ||
-    value.reason.trim() === ''
+    value.reason.trim() === '' ||
+    (value.selectedSense !== null && typeof value.selectedSense !== 'string')
   ) {
     throw new BrokerLanguageError(
       'The language broker returned malformed word help.',
@@ -134,7 +238,24 @@ function parseBrokerSelection(
       'response_invalid',
     );
   }
-  if (value.decision !== 'use_candidate' && candidateId !== null) {
+  const selectedCandidate = candidates.find(
+    (candidate) => candidate.id === candidateId,
+  );
+  const selectedSense =
+    typeof value.selectedSense === 'string' ? value.selectedSense.trim() : null;
+  if (
+    value.decision === 'use_candidate' &&
+    (!selectedSense || !selectedCandidate?.gloss.includes(selectedSense))
+  ) {
+    throw new BrokerLanguageError(
+      'The language broker returned an ungrounded definition.',
+      'response_invalid',
+    );
+  }
+  if (
+    value.decision !== 'use_candidate' &&
+    (candidateId !== null || selectedSense !== null)
+  ) {
     throw new BrokerLanguageError(
       'The language broker returned a conflicting selection.',
       'response_invalid',
@@ -146,6 +267,7 @@ function parseBrokerSelection(
     confidence: value.confidence,
     decision: value.decision as BrokerSelection['decision'],
     reason: value.reason.trim(),
+    selectedSense,
     tokenType: value.tokenType as BrokerSelection['tokenType'],
   };
 }
@@ -198,6 +320,25 @@ export async function requestBrokerWordHelp(
   });
 
   if (!response.ok) {
+    if (response.status === 429) {
+      const errorBody: unknown = await response
+        .clone()
+        .json()
+        .catch(() => null);
+      if (
+        isRecord(errorBody) &&
+        errorBody.error === 'daily_limit_reached' &&
+        typeof errorBody.resetAt === 'string' &&
+        Number.isFinite(Date.parse(errorBody.resetAt))
+      ) {
+        throw new BrokerLanguageError(
+          'The daily word-analysis limit has been reached.',
+          'daily_limit_reached',
+          429,
+          errorBody.resetAt,
+        );
+      }
+    }
     throw new BrokerLanguageError(
       `The language broker returned status ${response.status}.`,
       'request_failed',
@@ -255,21 +396,26 @@ export async function requestBrokerWordHelp(
   // Pinyin is needed only after the broker accepts a Mandarin candidate.
   // Loading it here keeps the normal PDF reader startup bundle smaller.
   const { pinyin } = await import('pinyin-pro');
+  const selectedSense = selection.selectedSense ?? selected.gloss;
+  const definitionDetails = conciseDefinition(selectedSense);
+  const partOfSpeech =
+    definitionDetails.partOfSpeech ||
+    partOfSpeechForSense(selected.gloss, selectedSense);
 
   return {
     action: 'use_mandarin',
     cefr: 'B2',
     confidence: selection.confidence,
     contextualExample: sentenceContext,
-    definition: selected.gloss,
+    definition: definitionDetails.definition,
     displayWord: selected.value,
     id: `${request.match.headword}-${stableHash(resultIdentity)}`,
     lemma: request.match.headword,
     mandarin: selected.value,
+    partOfSpeech,
     pinyin: pinyin(selected.value),
-    shortMeaning: selected.gloss,
-    simplerEnglish: selected.gloss,
+    shortMeaning: definitionDetails.definition,
     sourceWord,
-    usageNote: selection.reason,
+    usageNote: visibleUsageNote(selection.reason, selected.id),
   };
 }

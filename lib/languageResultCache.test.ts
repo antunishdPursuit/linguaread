@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LANGUAGE_RESULT_CACHE_STORAGE_KEY,
   readCachedLanguageResult,
+  readCachedLanguageResultKeys,
   writeCachedLanguageResult,
 } from './languageResultCache';
 import { MOCK_LANGUAGE_RESULT } from './mockLanguage';
@@ -29,6 +30,9 @@ describe('language result cache', () => {
     await expect(
       readCachedLanguageResult('context-key', storage),
     ).resolves.toEqual(MOCK_LANGUAGE_RESULT);
+    await expect(readCachedLanguageResultKeys(storage)).resolves.toEqual(
+      new Set(['context-key']),
+    );
   });
 
   it('ignores malformed cached records', async () => {
@@ -41,5 +45,8 @@ describe('language result cache', () => {
     await expect(
       readCachedLanguageResult('broken', storage),
     ).resolves.toBeNull();
+    await expect(readCachedLanguageResultKeys(storage)).resolves.toEqual(
+      new Set(),
+    );
   });
 });

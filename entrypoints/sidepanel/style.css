@@ -1,6 +1,6 @@
 :root {
   color: var(--color-text);
-  background: var(--color-surface-subtle);
+  background: var(--color-dictionary-background);
   font-family: var(--font-interface);
   font-synthesis: none;
 }
@@ -36,28 +36,18 @@ input:focus-visible {
 .panel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
   margin-inline: -16px;
   padding: 16px;
-  border-bottom: 1px solid var(--line);
-  background: var(--paper);
+  border-bottom: 1px solid var(--color-divider);
+  background: var(--color-surface);
 }
 
 .brand {
   display: flex;
-  gap: 10px;
   align-items: center;
-}
-
-.brand > span {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border-radius: var(--radius-control);
-  color: #fff;
-  background: var(--orange);
+  justify-content: center;
 }
 
 h1,
@@ -67,29 +57,26 @@ p {
 
 .brand h1 {
   margin-bottom: 0;
-  font-family: var(--font-display);
-  font-size: 21px;
+  line-height: 0;
 }
 
-.level-badge {
-  padding: 5px 8px;
-  border-radius: 6px;
-  color: var(--color-text);
-  background: var(--gold);
-  font-size: 12px;
-  font-weight: 700;
+.brand-logo {
+  display: block;
+  width: 136px;
+  max-width: 100%;
+  height: auto;
 }
 
 .panel-purpose {
   margin-inline: -16px;
   padding: 13px 16px 12px;
-  border-bottom: 1px solid var(--line);
-  background: var(--color-surface-subtle);
+  border-bottom: 1px solid var(--color-divider);
+  background: var(--color-canvas);
 }
 
 .panel-purpose p {
   margin-bottom: 3px;
-  color: var(--orange);
+  color: var(--color-word-card-accent);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -171,8 +158,8 @@ p {
 
 .remove-word:hover {
   border-color: var(--color-border);
-  color: var(--color-error);
-  background: var(--color-error-surface);
+  color: var(--color-text);
+  background: var(--color-neutral-surface);
 }
 
 .remove-word:disabled {
@@ -196,15 +183,6 @@ p {
   font-size: 22px;
 }
 
-.cefr {
-  padding: 3px 6px;
-  border-radius: 4px;
-  color: var(--color-text);
-  background: var(--color-level);
-  font-size: 11px;
-  font-weight: 700;
-}
-
 .word-item p {
   margin-bottom: 3px;
   color: var(--muted);
@@ -213,6 +191,12 @@ p {
 
 .word-item p:last-child {
   margin-bottom: 0;
+}
+
+.part-of-speech {
+  color: var(--ink);
+  font-family: var(--font-interface);
+  font-weight: 700;
 }
 
 .pinyin {
@@ -234,7 +218,7 @@ p {
 
 .panel-error {
   padding: 10px;
-  border: 1px solid var(--color-error);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   color: var(--color-error);
   background: var(--color-error-surface);
@@ -253,7 +237,7 @@ p {
 .empty-state > span {
   display: block;
   margin-bottom: 10px;
-  color: var(--orange);
+  color: var(--color-brand-text);
   font-size: 25px;
 }
 

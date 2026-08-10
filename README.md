@@ -1,77 +1,152 @@
 # LinguaRead
 
-LinguaRead is a PDF-first Chrome reading aid that helps Mandarin-speaking international students understand difficult English words without translating the entire document.
+<img src="public/branding/linguaread-logo.png" alt="LinguaRead logo" width="280">
 
-## The problem
+LinguaRead is a PDF-first Chrome reading aid for Mandarin-speaking students who read academic English. It gives focused help for a selected word while keeping the original English document visible.
 
-International students may understand most of an English academic PDF but still lose their place when a few unfamiliar words interrupt their reading. Looking up each word in another application breaks concentration. Translating the complete document removes too much English and gives the student less opportunity to practice reading it.
+## Why LinguaRead exists
 
-## The LinguaRead approach
+A reader may understand most of an English PDF but lose focus when a few unfamiliar words interrupt the page. Looking up each word in another application breaks the reading flow. Translating the full document removes too much of the English the reader is trying to practice.
 
-LinguaRead keeps the original English PDF visible and adds focused help only
-when the reader requests it. It does not rewrite, cover, or automatically mark
-the document.
+LinguaRead keeps the PDF in English. The reader asks for help only when it is needed.
+
+## What it does
+
+- Opens local, text-based PDFs in an extension-owned reader.
+- Opens contextual word help after a deliberate double-click.
+- Shows a Mandarin translation, pinyin, part of speech, a context-matched English definition, the source sentence, and a short usage explanation when a safe result is available.
+- Highlights analyzed words in blue with a white underline.
+- Restores exact cached highlights when the same PDF text is opened again.
+- Saves useful words to a searchable Dictionary in Chrome's side panel.
+- Keeps the complete PDF in the browser.
 
 ## How it works
 
-1. The reader opens a text-based English PDF in LinguaRead.
-2. The reader double-clicks any word that needs support.
-3. LinguaRead opens the complete word card without changing the PDF text.
-4. The reader saves useful words to one searchable **Dictionary**.
-5. The Dictionary remains available in Chrome's side panel for later reading.
+1. Open a text-based English PDF in Chrome.
+2. Select LinguaRead from the extension toolbar, or choose a PDF from the LinguaRead landing page.
+3. Double-click a word.
+4. Review the word help card.
+5. Select **Save to Dictionary** to keep the result for later review.
+6. Double-click the highlighted word again to hide its active highlight for the current session.
 
-The original English stays in the PDF. LinguaRead provides help around the text instead of replacing the reader's complete English experience.
+Repeated requests for the same normalized word and sentence use the local validated-result cache. Cached results remain available after the daily new-analysis allowance is reached.
 
-## Use LinguaRead
+### Public test document
 
-LinguaRead 0.1.0 is under Chrome Web Store review for private beta testing.
-After Google approves the extension and a tester is added:
+Use the [LinguaRead public demo PDF](assets/store/LinguaRead%20Public%20Demo.pdf) to test the reader without supplying a private document. This file is a repository test asset and is not included in the Chrome extension package.
 
-1. Install LinguaRead from its Chrome Web Store page.
-2. Open a text-based PDF and select **Open with LinguaRead**.
-3. Double-click a word for the complete word card.
-4. Open the **Dictionary** to review saved words.
+## Language system
 
-The private Chrome Web Store link will be added after the extension is
-approved.
+LinguaRead uses a bounded dictionary-plus-model flow:
 
-## Current limitations
+1. FreeDict and a ranked ECDICT subset provide local English-to-Chinese candidates.
+2. LinguaRead sends the selected word, its surrounding sentence, the fixed B2 target, and a short candidate list to a Cloudflare Worker.
+3. Gemini 3.6 Flash selects a supplied candidate that fits the sentence or returns no safe match. It is not allowed to invent a Chinese translation.
+4. The Worker and extension validate the response before showing it.
+5. `pinyin-pro` generates pinyin locally.
 
-- LinguaRead currently focuses on English and Mandarin at a fixed B2 reading level.
-- It requires a PDF with selectable text. Scanned image-only PDFs are not supported.
-- Website reading, other language pairs, and selectable A1-C2 levels are planned for later versions.
-- Language suggestions still require review by Mandarin-speaking testers.
+The current hosted service permits three successful new analyses per installation per UTC day. Cached results and failed provider requests do not use the allowance. A SQLite-backed Cloudflare Durable Object coordinates the count for an opaque hashed installation identifier.
 
-## Hack Your Summer
+### Why Gemini 3.6 Flash
 
-LinguaRead is being developed during the 2026 Hack Your Summer program.
+The production model was selected with a 159-request comparison across Gemini 3.5 Flash, Gemini 3.6 Flash, and Gemini 3.5 Flash-Lite. Gemini 3.6 Flash produced the best complete decision score in that test: 49 of 53 decisions, or 92.5%, while remaining inside the supplied candidate boundary in all 53 responses. Mandarin-speaker review is still required before treating the language output as externally validated.
 
-The project began with research into challenges faced by international students reading academic English. Dennis and Ji narrowed the idea to a PDF-first experience that supports difficult words while preserving the student's contact with the original English document.
+## Privacy and security
 
-The current goal is to test whether focused word help makes academic reading easier without relying on full-document translation.
+- The complete PDF stays in the browser.
+- An uncached request sends the selected word, its surrounding sentence, the fixed reading level, bounded dictionary candidates, and the random installation identifier in a request header.
+- The Gemini API key is stored as a Cloudflare secret. It is not included in the extension, repository, or browser storage.
+- Saved words, validated results, consent state, and the random installation identifier are stored in the user's Chrome profile.
+- The Worker hashes the installation identifier before using it as the per-installation Cloudflare Durable Object key. It is not an account ID or email address.
+- The hosted service permits three successful new analyses per installation per UTC day. Cached results and failed provider requests do not use the allowance.
+- The Worker accepts requests only from approved extension origins, validates request and response data, applies a rate limit, and returns safe errors.
 
-## Roadmap
+Read the [LinguaRead Privacy Policy](https://antunishdpursuit.github.io/linguaread-privacy/) for the broader data-use description. This README documents the current allowance and Worker-origin rules.
 
-- Complete the private Chrome Web Store review.
-- Validate language choices with Mandarin-speaking reviewers.
-- Test the complete reading flow with international students.
-- Refine word assistance from verified tester feedback.
-- Add optional A1-C2 reading levels.
-- Support ordinary websites after the PDF experience is stable.
+## Technology
 
-## Privacy
+| Area | Implementation |
+| --- | --- |
+| Chrome extension | WXT, React, TypeScript, Manifest V3 |
+| PDF reader | PDF.js through React-PDF |
+| Local language data | FreeDict and ranked ECDICT shards |
+| Context selection | Gemini 3.6 Flash through a Cloudflare Worker |
+| Daily allowance | SQLite-backed Cloudflare Durable Object |
+| Saved Dictionary and cache | `chrome.storage.local` |
+| Dictionary panel | Chrome Side Panel API |
 
-Read the [LinguaRead Privacy Policy](https://antunishdpursuit.github.io/linguaread-privacy/)
-for the data used by deliberate word-help requests.
+## Run locally
+
+### Requirements
+
+- A current Node.js release
+- pnpm
+- Chrome 127 or newer
+
+### Build and load the extension
+
+```powershell
+Copy-Item .env.example .env
+# Edit .env and set VITE_LINGUAREAD_LANGUAGE_BROKER_URL to your own Worker endpoint.
+pnpm install
+pnpm build
+```
+
+Then open `chrome://extensions` in Chrome:
+
+1. Turn on **Developer mode**.
+2. Select **Load unpacked**.
+3. Choose `.output/chrome-mv3` from this repository.
+4. Pin LinguaRead and test it with the public demo PDF.
+
+The public repository does not contain a default maintainer Worker URL or a Gemini API key. A functional build receives its Worker endpoint from the ignored `.env` file. For a build configured with your own Worker, an uncached word-help request sends the selected word, its surrounding sentence, the fixed B2 level, bounded local dictionary candidates, and a random installation identifier to that Worker. The Worker sends the bounded request to Gemini 3.6 Flash using a server-side API key; the key is not included in the repository or extension. The complete PDF stays in the browser.
+
+No Gemini API key is required in the extension build. The published private-beta extension uses the maintainer's hosted service and its allowance of three successful new analyses per installation per UTC day. Local unpacked clones are not authorized to use that service. Cached results and failed provider requests do not consume the allowance.
+
+### Use your own Worker
+
+To run a clone or fork with language help:
+
+1. Deploy the checked-in Worker to your own Cloudflare account.
+2. Set your own provider secret. Do not put it in `.env`, the extension, or the repository.
+
+   ```powershell
+   pnpm exec wrangler secret put GEMINI_API_KEY
+   ```
+
+3. Replace `ALLOWED_ORIGINS` in `wrangler.jsonc` with the exact origin of your extension build. Do not reuse the maintainer's extension origin.
+4. Set `VITE_LINGUAREAD_LANGUAGE_BROKER_URL` in `.env` to your Worker endpoint.
+5. Run `pnpm broker:check`, deploy your Worker, and then run `pnpm build`.
+
+The Chrome Web Store build uses a maintainer-only `.env` value for its approved Worker endpoint. That value is not part of the public repository.
+
+## Verification
+
+```powershell
+pnpm test
+pnpm compile
+pnpm build
+pnpm zip
+pnpm audit
+```
+
+These checks cover the local extension. The current 0.1.1 release candidate also passed a maintainer-only Cloudflare Worker dry run and a full dependency audit with zero known findings.
+
+The generated Store package is `.output/linguaread-<version>-chrome.zip`. Generated output is not committed.
+
+## Current limits
+
+- English-to-Mandarin support uses a fixed B2 target.
+- Image-only scanned PDFs are not supported because LinguaRead requires selectable text.
+- Ordinary website reading, OCR, pronunciation, dictionary export, alphabetical navigation, account sync, and additional language pairs are not part of the current release.
+- A safe Chinese translation is not guaranteed for every word and context.
+- Language choices and pinyin still need review by Mandarin-speaking testers.
+- The Chrome Web Store build is a private beta for trusted testers, not a public production release.
 
 ## Contributors and acknowledgments
 
-- **Dennis** — product development, PDF experience, word interactions, and integration
-- **Ji** — product collaboration and language-learning direction
+- **Dennis** — product development, PDF experience, word interactions, language-service integration, and release engineering
+- **Jingru Zhao (Ji)** — product collaboration and language-learning direction
 - **Hack Your Summer** — program, community, and mentorship support
-- English-Chinese dictionary data from
-  [FreeDict](https://freedict.org/) release 2025.11.23, licensed under
-  [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
-- Ranked English-Chinese dictionary data from
-  [ECDICT](https://github.com/skywind3000/ECDICT), licensed under the
-  [MIT License](https://github.com/skywind3000/ECDICT/blob/master/LICENSE).
+- [FreeDict](https://freedict.org/) English-Chinese data, release 2025.11.23, under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)
+- [ECDICT](https://github.com/skywind3000/ECDICT) ranked English-Chinese data under its [MIT License](https://github.com/skywind3000/ECDICT/blob/master/LICENSE)

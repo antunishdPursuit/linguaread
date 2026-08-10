@@ -113,12 +113,29 @@ describe('packaged dictionary assets', () => {
     );
   });
 
-  it('retains domain-labeled translations such as automotive performance', async () => {
-    const match = await findEcDictMatch('performance', assetDependencies());
+  it('retains the reported and domain-labeled translations', async () => {
+    const dependencies = assetDependencies();
+    const [further, performance, without] = await Promise.all([
+      findEcDictMatch('further', dependencies),
+      findEcDictMatch('performance', dependencies),
+      findEcDictMatch('without', dependencies),
+    ]);
 
-    expect(match?.translations).toEqual(
+    expect(further?.translations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: '更进一步地' }),
+      ]),
+    );
+    expect(performance?.translations).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ value: '性能' }),
+      ]),
+    );
+    expect(without?.translations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: '没有' }),
+        expect.objectContaining({ value: '不' }),
+        expect.objectContaining({ value: '在...之外' }),
       ]),
     );
   });

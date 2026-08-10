@@ -7,6 +7,13 @@ import {
   tokenizeEnglishWords,
   toPageRelativeRectangle,
 } from './pdfWordGeometry';
+import {
+  forgetPdfWordHighlight,
+  rememberPdfWordHighlight,
+  restoreCachedPdfWordHighlights,
+  shouldHighlightPdfWord,
+} from './pdfWordHighlights';
+import { createLanguageCacheKey } from './brokerLanguage';
 
 describe('PDF word geometry tokenization', () => {
   it('finds separate words without changing their source offsets', () => {
@@ -36,6 +43,18 @@ describe('PDF word geometry tokenization', () => {
 
     expect(extractSentenceContext(text, text.indexOf('attributed'))).toBe(
       'Ferrari attributed its growth to planning.',
+    );
+
+    const noisyPdfText =
+      "25-237 May 11, 2025 Ferrari in 2025 Balancing Tradition Donald Sull Cameron Davis Born of Enzo Ferrari's passion for car racing in the early decades of the Twentieth Century, the company became famous worldwide.";
+    expect(
+      extractSentenceContext(
+        noisyPdfText,
+        noisyPdfText.indexOf('passion'),
+        180,
+      ),
+    ).toBe(
+      "Born of Enzo Ferrari's passion for car racing in the early decades of the Twentieth Century, the company became famous worldwide.",
     );
   });
 
@@ -85,5 +104,59 @@ describe('PDF word geometry tokenization', () => {
 
     expect(findPdfWordTargetAtPoint(index, 50, 50)).toEqual(smallerTarget);
     expect(findPdfWordTargetAtPoint(index, 200, 50)).toBeNull();
+  });
+
+  it('keeps only successful exact occurrences in one PDF highlight trail', () => {
+    let trail = new Set<string>();
+
+    expect(shouldHighlightPdfWord(trail, '1-0-0', '1-0-0')).toBe(true);
+    expect(shouldHighlightPdfWord(trail, '1-0-6')).toBe(false);
+
+    trail = rememberPdfWordHighlight(trail, '1-0-0');
+    expect(shouldHighlightPdfWord(trail, '1-0-0')).toBe(true);
+    expect(shouldHighlightPdfWord(trail, '2-0-0')).toBe(false);
+
+    trail = rememberPdfWordHighlight(trail, '2-0-0');
+    expect([...trail]).toEqual(['1-0-0', '2-0-0']);
+
+    trail = forgetPdfWordHighlight(trail, '1-0-0');
+    expect(shouldHighlightPdfWord(trail, '1-0-0')).toBe(false);
+    expect(shouldHighlightPdfWord(trail, '2-0-0')).toBe(true);
+
+    trail = new Set();
+    expect(shouldHighlightPdfWord(trail, '1-0-0')).toBe(false);
+    expect(shouldHighlightPdfWord(trail, '2-0-0')).toBe(false);
+  });
+
+  it('restores exact cached contexts and keeps a user-hidden result off', () => {
+    const targets = [
+      {
+        context: 'Ferrari nearly doubled the number of vehicles shipped.',
+        id: '1-0-0',
+        rectangles: [],
+        word: 'doubled',
+      },
+      {
+        context: 'The recipe doubled the amount of sugar.',
+        id: '2-0-0',
+        rectangles: [],
+        word: 'doubled',
+      },
+    ];
+    const cachedKeys = new Set([
+      createLanguageCacheKey(targets[0]!.word, targets[0]!.context),
+    ]);
+
+    expect(
+      restoreCachedPdfWordHighlights(new Set(), targets, cachedKeys),
+    ).toEqual(new Set(['1-0-0']));
+    expect(
+      restoreCachedPdfWordHighlights(
+        new Set(),
+        targets,
+        cachedKeys,
+        new Set(['1-0-0']),
+      ),
+    ).toEqual(new Set());
   });
 });

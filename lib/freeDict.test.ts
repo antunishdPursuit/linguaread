@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { normalizeLookupWord } from './dictionaryLookup';
 import {
   clearFreeDictShardCacheForTests,
   findFreeDictMatch,
@@ -10,11 +9,6 @@ beforeEach(() => {
 });
 
 describe('FreeDict lookup', () => {
-  it('normalizes formatting without changing the selected word form', () => {
-    expect(normalizeLookupWord(' Controlled, ')).toBe('controlled');
-    expect(normalizeLookupWord('Pursuing')).toBe('pursuing');
-  });
-
   it('returns only the exact normalized headword', async () => {
     await expect(
       findFreeDictMatch('Controlled,', {

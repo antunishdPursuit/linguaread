@@ -158,6 +158,32 @@ describe('word help flow', () => {
     expect(services.request).toHaveBeenCalledOnce();
   });
 
+  it('shows the daily allowance message without retrying', async () => {
+    const services = dependencies({
+      request: vi.fn().mockRejectedValue(
+        new BrokerLanguageError(
+          'daily limit',
+          'daily_limit_reached',
+          429,
+          '2026-08-10T00:00:00.000Z',
+        ),
+      ),
+    });
+
+    await expect(
+      loadWordHelp(
+        'innovation',
+        'The company invested in innovation.',
+        services,
+      ),
+    ).resolves.toMatchObject({
+      message: expect.stringContaining("today's 3 word analyses"),
+      reason: 'daily_limit_reached',
+      status: 'error',
+    });
+    expect(services.request).toHaveBeenCalledOnce();
+  });
+
   it('keeps the English word unchanged when confidence is low', async () => {
     const services = dependencies({
       request: vi.fn().mockResolvedValue({

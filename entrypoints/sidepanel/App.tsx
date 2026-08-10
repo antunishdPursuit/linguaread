@@ -38,9 +38,6 @@ function DictionaryEntries({
               )}
               <strong>{entry.sourceWord}</strong>
             </div>
-            {entry.cefr !== 'unknown' && (
-              <span className="cefr">{entry.cefr}</span>
-            )}
             <button
               className="remove-word"
               type="button"
@@ -54,15 +51,13 @@ function DictionaryEntries({
           </div>
           {entry.pinyin && <p className="pinyin">{entry.pinyin}</p>}
           <p className="meaning">
+            {entry.partOfSpeech && (
+              <span className="part-of-speech">[{entry.partOfSpeech}]</span>
+            )}{' '}
             {entry.definition ||
               entry.shortMeaning ||
               'Word details are not available yet.'}
           </p>
-          {entry.simplerEnglish && (
-            <p className="simpler">
-              Simpler English: <strong>{entry.simplerEnglish}</strong>
-            </p>
-          )}
         </li>
       ))}
     </ul>
@@ -95,7 +90,7 @@ function App() {
         entry.pinyin,
         entry.definition,
         entry.shortMeaning,
-        entry.simplerEnglish,
+        entry.partOfSpeech,
       ].some((value) => value.toLowerCase().includes(normalized)),
     );
   }, [query, vocabulary.entries]);
@@ -121,10 +116,14 @@ function App() {
     <main className="panel-shell">
       <header className="panel-header">
         <div className="brand">
-          <span aria-hidden="true">▣</span>
-          <h1>LinguaRead</h1>
+          <h1 className="brand-heading">
+            <img
+              className="brand-logo"
+              src="/branding/linguaread-logo.png"
+              alt="LinguaRead"
+            />
+          </h1>
         </div>
-        <span className="level-badge">B2</span>
       </header>
 
       <section className="panel-purpose" aria-labelledby="panel-title">

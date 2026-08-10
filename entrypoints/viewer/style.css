@@ -51,6 +51,7 @@ button:focus-visible,
   flex-direction: column;
   padding-bottom: 0;
   overflow: hidden;
+  background: var(--color-reader-background);
 }
 
 .browser-bar {
@@ -58,87 +59,69 @@ button:focus-visible,
   z-index: 30;
   top: 0;
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 18px;
   align-items: center;
   min-height: 58px;
   padding: 10px clamp(16px, 3vw, 40px);
-  border-bottom: 1px solid var(--color-border);
-  background: rgb(255 252 245 / 96%);
-  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-divider);
+  background: var(--color-surface);
 }
 
 .has-document > .browser-bar,
-.has-document > .document-header,
 .has-document > .error-message {
   flex: 0 0 auto;
 }
 
 .document-summary {
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
+}
+
+.navigation-logo {
+  display: block;
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  width: 112px;
+  max-width: 22vw;
+  height: auto;
 }
 
 .document-path {
   display: flex;
   gap: 9px;
   align-items: center;
+  height: 38px;
   min-width: 0;
-  padding: 9px 14px;
+  padding: 0 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
-  color: var(--muted);
-  background: var(--color-surface-subtle);
+  color: var(--color-document-path-text);
+  background: var(--color-document-path);
   font-size: 14px;
   white-space: nowrap;
 }
 
 .document-path strong {
   overflow: hidden;
-  color: var(--color-text);
+  color: var(--color-document-path-text);
   font-weight: 500;
   text-overflow: ellipsis;
 }
 
 .reader-tools,
-.level-selector,
 .words-button {
   display: flex;
   align-items: center;
 }
 
 .reader-tools {
+  grid-column: 3;
+  grid-row: 1;
+  justify-content: flex-end;
   gap: 14px;
-}
-
-.level-selector {
-  gap: 4px;
-}
-
-.level-label {
-  margin-right: 4px;
-  color: var(--muted);
-  font-size: 12px;
-  text-transform: lowercase;
-}
-
-.level-selector button {
-  min-width: 30px;
-  min-height: 30px;
-  padding: 4px;
-  border: 1px solid var(--color-border);
-  border-radius: 5px;
-  color: var(--color-text-muted);
-  background: var(--color-surface-subtle);
-  font-size: 12px;
-  opacity: 0.58;
-  cursor: not-allowed;
-}
-
-.level-selector button.active {
-  border-color: var(--gold);
-  color: var(--color-text);
-  background: var(--gold);
-  opacity: 1;
 }
 
 .words-button,
@@ -151,14 +134,32 @@ button:focus-visible,
   justify-content: center;
   min-height: 38px;
   padding: 9px 14px;
-  border: 1px solid var(--color-text);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
-  color: #fff;
-  background: var(--color-text);
   font-weight: 700;
 }
 
-.document-header,
+.words-button,
+.compact-file-button {
+  height: 38px;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.file-button,
+.primary-button {
+  border-color: var(--color-primary);
+  color: #fff;
+  background: var(--color-primary);
+}
+
+.words-button:hover,
+.compact-file-button:hover,
+.file-button:hover,
+.primary-button:hover:not(:disabled) {
+  border-color: var(--color-text);
+}
+
 .error-message {
   width: min(1180px, calc(100% - 32px));
   margin-inline: auto;
@@ -170,8 +171,13 @@ button:focus-visible,
 }
 
 .app-shell.is-empty .reader-workspace {
+  display: grid;
+  width: calc(100% - 32px);
   min-height: 0;
   flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 12px;
+  margin-bottom: 16px;
 }
 
 .reader-workspace.has-document {
@@ -194,9 +200,9 @@ button:focus-visible,
   padding: 16px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
-  background: rgb(255 252 245 / 96%);
+  color: var(--color-text);
+  background: var(--color-surface);
   box-shadow: var(--shadow-control);
-  backdrop-filter: blur(10px);
 }
 
 .page-controls,
@@ -220,9 +226,9 @@ button:focus-visible,
 }
 
 .reader-control-bar button:hover:not(:disabled) {
-  border-color: var(--orange);
-  color: var(--color-primary-hover);
-  background: var(--color-surface-subtle);
+  border-color: var(--color-text);
+  color: var(--color-text);
+  background: var(--color-surface);
 }
 
 .reader-control-bar button:disabled {
@@ -238,13 +244,8 @@ button:focus-visible,
   border-bottom: 1px solid var(--color-border);
 }
 
-.reader-control-intro strong {
-  font-family: var(--font-display);
-  font-size: 20px;
-}
-
 .reader-control-intro span {
-  color: var(--muted);
+  color: var(--color-text);
   font-size: 14px;
   line-height: 1.45;
 }
@@ -267,38 +268,8 @@ button:focus-visible,
   border-bottom: 1px solid var(--color-border);
 }
 
-.document-header {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 24px;
-  margin-top: 26px;
-  padding: 18px 22px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  background: rgb(255 252 245 / 92%);
-}
-
-.document-header h1,
-.document-header p {
-  margin: 0;
-}
-
-.document-header h1 {
-  color: var(--color-text);
-  font-family: var(--font-display);
-  font-size: clamp(26px, 4vw, 38px);
-  letter-spacing: -0.035em;
-}
-
-.document-header > div > p:last-child {
-  margin-top: 5px;
-  color: var(--muted);
-  font-size: 14px;
-}
-
 .card-label {
-  color: var(--orange);
+  color: var(--color-brand-text);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -307,14 +278,14 @@ button:focus-visible,
 
 .file-button {
   flex: 0 0 auto;
-  border-color: var(--orange);
-  background: var(--orange);
+  border-color: var(--color-primary);
+  background: var(--color-primary);
 }
 
 .compact-file-button {
   flex: 0 0 auto;
-  min-height: 34px;
-  padding: 7px 10px;
+  min-height: 38px;
+  padding: 0 14px;
   border-color: var(--color-border);
   color: var(--color-text);
   background: var(--color-surface);
@@ -335,7 +306,7 @@ button:focus-visible,
 .error-message {
   margin-top: 12px;
   padding: 12px 14px;
-  border: 1px solid var(--color-error);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   color: var(--color-error);
   background: var(--color-error-surface);
@@ -356,10 +327,10 @@ button:focus-visible,
 .permission-action {
   flex: 0 0 auto;
   padding: 9px 12px;
-  border: 1px solid var(--color-error);
+  border: 1px solid var(--color-primary);
   border-radius: var(--radius-control);
   color: #fff;
-  background: var(--color-error);
+  background: var(--color-primary);
   cursor: pointer;
   font: inherit;
   font-weight: 700;
@@ -392,6 +363,9 @@ button:focus-visible,
 
 .reader-workspace.is-empty .reader-stage {
   height: 100%;
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -405,6 +379,9 @@ button:focus-visible,
   height: 100%;
   min-height: 0;
   margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--color-reader-background);
 }
 
 .react-pdf__Document {
@@ -421,11 +398,20 @@ button:focus-visible,
   position: relative;
   width: fit-content;
   scroll-margin-top: 60px;
-  box-shadow: 0 12px 34px rgb(35 31 26 / 22%);
+  box-shadow: 0 12px 34px rgb(0 0 0 / 34%);
+}
+
+::highlight(linguaread-active-word) {
+  color: #fff;
+  background: var(--color-word-highlight);
+  text-decoration: underline;
+  text-decoration-color: #fff;
+  text-decoration-thickness: 0.12em;
+  text-underline-offset: 0.12em;
 }
 
 .react-pdf__Page {
-  background: var(--paper) !important;
+  background: var(--color-pdf-page) !important;
 }
 
 .page-number {
@@ -438,8 +424,8 @@ button:focus-visible,
   padding: 3px 6px;
   place-items: center;
   border-radius: 999px;
-  color: var(--color-text-muted);
-  background: rgb(255 252 245 / 90%);
+  color: var(--color-text);
+  background: var(--color-surface);
   font-size: 12px;
   font-weight: 700;
   pointer-events: none;
@@ -451,8 +437,8 @@ button:focus-visible,
   place-items: center;
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-control);
-  color: var(--color-text-muted);
-  background: rgb(255 252 245 / 78%);
+  color: var(--color-text);
+  background: var(--color-surface);
   font-size: 13px;
   font-weight: 700;
 }
@@ -464,7 +450,7 @@ button:focus-visible,
   margin: 0;
   place-items: center;
   align-content: center;
-  color: var(--color-text-muted);
+  color: var(--color-reader-text);
   text-align: center;
 }
 
@@ -485,6 +471,10 @@ button:focus-visible,
   line-height: 1.6;
 }
 
+.empty-reader .file-button {
+  margin-top: 20px;
+}
+
 .empty-document {
   position: relative;
   display: grid;
@@ -492,9 +482,9 @@ button:focus-visible,
   height: 116px;
   place-items: center;
   border: 1px solid var(--color-border);
-  color: var(--orange);
-  background: var(--paper);
-  box-shadow: 5px 6px 0 var(--color-border);
+  color: var(--color-brand-text);
+  background: var(--color-surface);
+  box-shadow: 5px 6px 0 rgb(0 0 0 / 34%);
   font-weight: 700;
 }
 
@@ -502,9 +492,13 @@ button:focus-visible,
   position: fixed;
   z-index: 50;
   width: min(340px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
   padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
+  color: var(--color-text);
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
 }
@@ -527,7 +521,7 @@ button:focus-visible,
 }
 
 .word-pair span {
-  color: var(--orange);
+  color: var(--color-word-card-accent);
   font-size: 23px;
 }
 
@@ -557,14 +551,64 @@ button:focus-visible,
 .word-details {
   display: grid;
   gap: 10px;
-  margin: 14px 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+  margin: 10px 0 14px;
 }
 
 .word-details div {
   display: grid;
   gap: 3px;
+}
+
+.word-details .usage-detail {
+  padding: 10px 12px;
+  border: 1px solid var(--color-usage-border);
+  border-radius: var(--radius-control);
+}
+
+.word-details .usage-detail dt {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.word-details .meaning-detail {
+  gap: 0;
+}
+
+.part-of-speech {
+  font-family: var(--font-interface);
+  font-weight: 700;
+}
+
+.word-details .example-detail {
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+}
+
+.word-details .example-detail dd {
+  color: var(--color-text);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.word-details .usage-detail {
+  background: var(--color-usage-surface);
+}
+
+.word-details .usage-detail dt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text);
+}
+
+.usage-icon {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 .word-details dt {
@@ -610,9 +654,9 @@ button:focus-visible,
   align-items: center;
 }
 
-.primary-button {
-  border-color: var(--orange);
-  background: var(--orange);
+.word-card .primary-button {
+  border-color: var(--color-word-card-accent);
+  background: var(--color-word-card-accent);
 }
 
 .primary-button:disabled {
@@ -620,8 +664,8 @@ button:focus-visible,
 }
 
 .primary-button.selected {
-  border-color: var(--color-focus);
-  background: var(--color-focus);
+  border-color: var(--color-text);
+  background: var(--color-primary);
 }
 
 .card-secondary-button {
@@ -667,10 +711,6 @@ button:focus-visible,
     border: 0;
   }
 
-  .reader-control-intro strong {
-    font-size: 18px;
-  }
-
   .reader-control-intro span {
     font-size: 13px;
   }
@@ -689,12 +729,23 @@ button:focus-visible,
 
 @media (max-width: 980px) {
   .browser-bar {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .navigation-logo {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .document-summary {
+    grid-column: 1;
+    grid-row: 2;
   }
 
   .reader-tools {
-    grid-column: 1 / -1;
-    justify-content: space-between;
+    grid-column: 2;
+    grid-row: 2;
+    justify-content: flex-end;
   }
 
 }
@@ -702,9 +753,11 @@ button:focus-visible,
 @media (max-width: 680px) {
   .browser-bar {
     position: static;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .reader-workspace.has-document {
+  .reader-workspace.has-document,
+  .reader-workspace.is-empty {
     width: calc(100% - 16px);
     margin-top: 8px;
     margin-bottom: 8px;
@@ -720,18 +773,12 @@ button:focus-visible,
 
   .document-summary {
     grid-column: 1 / -1;
+    grid-row: 2;
   }
 
   .reader-tools {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .level-selector {
-    justify-content: space-between;
-  }
-
-  .document-header {
+    grid-column: 1 / -1;
+    grid-row: 3;
     align-items: stretch;
     flex-direction: column;
   }

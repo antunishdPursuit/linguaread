@@ -2,6 +2,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type Dispatch,
@@ -27,6 +28,14 @@ import {
   type PdfWordSpatialIndex,
   type PdfWordTarget,
 } from '../../lib/pdfWordGeometry';
+import {
+  forgetPdfWordHighlight,
+  rememberPdfWordHighlight,
+  restoreCachedPdfWordHighlights,
+  shouldHighlightPdfWord,
+} from '../../lib/pdfWordHighlights';
+import { readCachedLanguageResultKeys } from '../../lib/languageResultCache';
+import { createLanguageCacheKey } from '../../lib/brokerLanguage';
 import type { LanguageResult, VocabularyState } from '../../lib/types';
 import {
   createWordOnlyVocabularyEntry,
@@ -59,19 +68,63 @@ type ActiveCard = {
   top: number;
 };
 
-const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
+const ACTIVE_PDF_WORD_HIGHLIGHT = 'linguaread-active-word';
 
-function selectPdfWord(target: PdfWordTarget): void {
-  const selection = window.getSelection();
-  if (!selection || !target.selection) return;
+type WritableHighlightRegistry = HighlightRegistry & {
+  delete(name: string): boolean;
+  set(name: string, highlight: Highlight): void;
+};
 
-  // Chrome's native double-click selection can expand after repeated clicks.
-  // Recreate the measured word range so the blue selection stays exact.
+function clearPdfWordHighlights(): void {
+  const registry = CSS.highlights as WritableHighlightRegistry | undefined;
+  registry?.delete(ACTIVE_PDF_WORD_HIGHLIGHT);
+  window.getSelection()?.removeAllRanges();
+}
+
+function createPdfWordRange(target: PdfWordTarget): Range | null {
+  const measuredSelection = target.selection;
+  if (!measuredSelection?.node.isConnected) return null;
+
   const range = document.createRange();
-  range.setStart(target.selection.node, target.selection.start);
-  range.setEnd(target.selection.node, target.selection.end);
+  range.setStart(measuredSelection.node, measuredSelection.start);
+  range.setEnd(measuredSelection.node, measuredSelection.end);
+  return range;
+}
+
+function renderPdfWordHighlights(
+  targetsByPage: Record<number, PdfWordTarget[]>,
+  trail: ReadonlySet<string>,
+  activeTargetId?: string,
+): void {
+  const targets = Object.values(targetsByPage).flat();
+  const ranges = targets
+    .filter((target) =>
+      shouldHighlightPdfWord(trail, target.id, activeTargetId),
+    )
+    .map(createPdfWordRange)
+    .filter((range): range is Range => range !== null);
+
+  const registry = CSS.highlights as WritableHighlightRegistry | undefined;
+  if (registry && typeof Highlight === 'function') {
+    window.getSelection()?.removeAllRanges();
+    if (ranges.length) {
+      registry.set(ACTIVE_PDF_WORD_HIGHLIGHT, new Highlight(...ranges));
+    } else {
+      registry.delete(ACTIVE_PDF_WORD_HIGHLIGHT);
+    }
+    return;
+  }
+
+  const activeTarget = activeTargetId
+    ? targets.find((target) => target.id === activeTargetId)
+    : undefined;
+  const activeRange = activeTarget
+    ? createPdfWordRange(activeTarget)
+    : null;
+  const selection = window.getSelection();
+  if (!selection) return;
   selection.removeAllRanges();
-  selection.addRange(range);
+  if (activeRange) selection.addRange(activeRange);
 }
 
 function getPdfWordViewportRectangle(
@@ -91,17 +144,19 @@ function getPdfWordViewportRectangle(
   return rectangle.width > 0 && rectangle.height > 0 ? rectangle : null;
 }
 
-function positionWordCard(rectangle: DOMRect): {
+function positionWordCard(rectangle: DOMRect, cardHeight = 260): {
   left: number;
   top: number;
 } {
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+
   return positionFloatingCard(
     rectangle,
     {
-      height: 260,
+      height: Math.min(cardHeight, Math.max(0, viewportHeight - 32)),
       width: Math.min(340, Math.max(0, window.innerWidth - 32)),
     },
-    { height: window.innerHeight, width: window.innerWidth },
+    { height: viewportHeight, width: window.innerWidth },
   );
 }
 
@@ -250,9 +305,14 @@ const PdfReaderDocument = memo(function PdfReaderDocument({
 
 function App() {
   const viewerRef = useRef<HTMLDivElement>(null);
+  const wordCardRef = useRef<HTMLElement>(null);
   const activeCardRef = useRef<ActiveCard | null>(null);
+  const highlightedWordIdsRef = useRef<Set<string>>(new Set());
+  const hiddenCachedWordIdsRef = useRef<Set<string>>(new Set());
+  const cachedLanguageResultKeysRef = useRef<Set<string>>(new Set());
   const wordHelpRequestRef = useRef(0);
   const wordTargetIndexesRef = useRef<Record<number, PdfWordSpatialIndex>>({});
+  const wordTargetsByPageRef = useRef<Record<number, PdfWordTarget[]>>({});
   const isPdfHandoff = isPdfHandoffSearch(window.location.search);
   const [file, setFile] = useState<File | string | null>(null);
   const [fileName, setFileName] = useState('Choose a PDF to begin');
@@ -273,11 +333,37 @@ function App() {
   const [error, setError] = useState('');
   const [pdfError, setPdfError] = useState('');
 
+  useLayoutEffect(() => {
+    const card = wordCardRef.current;
+    if (!activeCard || !card) return;
+
+    const rectangle = getPdfWordViewportRectangle(activeCard.target);
+    if (!rectangle) return;
+
+    const nextPosition = positionWordCard(rectangle, card.scrollHeight);
+    if (
+      nextPosition.left === activeCard.left &&
+      nextPosition.top === activeCard.top
+    ) {
+      return;
+    }
+
+    const nextCard = { ...activeCard, ...nextPosition };
+    activeCardRef.current = nextCard;
+    setActiveCard(nextCard);
+  }, [
+    activeCard?.message,
+    activeCard?.result,
+    activeCard?.status,
+    activeCard?.target.id,
+  ]);
+
   useEffect(() => {
     const element = viewerRef.current;
     if (!element) return;
 
     const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return;
       setBaseViewerWidth(
         Math.max(280, Math.min(760, entry.contentRect.width - 48)),
       );
@@ -305,8 +391,11 @@ function App() {
   const handleFile = useCallback((nextFile?: File) => {
     wordHelpRequestRef.current += 1;
     activeCardRef.current = null;
+    highlightedWordIdsRef.current = new Set();
+    hiddenCachedWordIdsRef.current = new Set();
+    cachedLanguageResultKeysRef.current = new Set();
     setActiveCard(null);
-    window.getSelection()?.removeAllRanges();
+    clearPdfWordHighlights();
     setError('');
     setPdfError('');
     setLocalFileNeedsSelection(false);
@@ -316,6 +405,7 @@ function App() {
     setRequestedPage(null);
     setZoom(1);
     wordTargetIndexesRef.current = {};
+    wordTargetsByPageRef.current = {};
 
     if (!nextFile) {
       setFile(null);
@@ -333,6 +423,33 @@ function App() {
     setFile(nextFile);
     setFileName(nextFile.name);
   }, []);
+
+  useEffect(() => {
+    if (!file) return;
+    let cancelled = false;
+
+    void readCachedLanguageResultKeys()
+      .then((cachedResultKeys) => {
+        if (cancelled) return;
+        cachedLanguageResultKeysRef.current = cachedResultKeys;
+        highlightedWordIdsRef.current = restoreCachedPdfWordHighlights(
+          highlightedWordIdsRef.current,
+          Object.values(wordTargetsByPageRef.current).flat(),
+          cachedResultKeys,
+          hiddenCachedWordIdsRef.current,
+        );
+        renderPdfWordHighlights(
+          wordTargetsByPageRef.current,
+          highlightedWordIdsRef.current,
+          activeCardRef.current?.target.id,
+        );
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [file]);
 
   useEffect(() => {
     const parameters = new URLSearchParams(window.location.search);
@@ -373,10 +490,44 @@ function App() {
 
   const setPageWordTargets = useCallback(
     (pageNumber: number, targets: PdfWordTarget[]) => {
+      wordTargetsByPageRef.current = {
+        ...wordTargetsByPageRef.current,
+        [pageNumber]: targets,
+      };
       wordTargetIndexesRef.current = {
         ...wordTargetIndexesRef.current,
         [pageNumber]: buildPdfWordSpatialIndex(targets),
       };
+      highlightedWordIdsRef.current = restoreCachedPdfWordHighlights(
+        highlightedWordIdsRef.current,
+        targets,
+        cachedLanguageResultKeysRef.current,
+        hiddenCachedWordIdsRef.current,
+      );
+      const currentCard = activeCardRef.current;
+      const refreshedActiveTarget = currentCard
+        ? targets.find((target) => target.id === currentCard.target.id)
+        : undefined;
+      if (currentCard && refreshedActiveTarget) {
+        const rectangle = getPdfWordViewportRectangle(refreshedActiveTarget);
+        const nextCard = {
+          ...currentCard,
+          target: refreshedActiveTarget,
+          ...(rectangle
+            ? positionWordCard(
+                rectangle,
+                wordCardRef.current?.scrollHeight,
+              )
+            : {}),
+        };
+        activeCardRef.current = nextCard;
+        setActiveCard(nextCard);
+      }
+      renderPdfWordHighlights(
+        wordTargetsByPageRef.current,
+        highlightedWordIdsRef.current,
+        activeCardRef.current?.target.id,
+      );
     },
     [],
   );
@@ -419,7 +570,7 @@ function App() {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) return;
+        if (!entry?.isIntersecting) return;
         setRenderedPageCount((current) =>
           Math.min(pageCount, current + 2),
         );
@@ -485,7 +636,10 @@ function App() {
     wordHelpRequestRef.current += 1;
     activeCardRef.current = null;
     setActiveCard(null);
-    window.getSelection()?.removeAllRanges();
+    renderPdfWordHighlights(
+      wordTargetsByPageRef.current,
+      highlightedWordIdsRef.current,
+    );
   }, []);
 
   const requestWordHelp = useCallback((target: PdfWordTarget, rect: DOMRect) => {
@@ -529,6 +683,20 @@ function App() {
 
       activeCardRef.current = resolvedCard;
       setActiveCard(resolvedCard);
+      if (resolvedCard.status === 'ready') {
+        cachedLanguageResultKeysRef.current.add(
+          createLanguageCacheKey(target.word, target.context),
+        );
+        highlightedWordIdsRef.current = rememberPdfWordHighlight(
+          highlightedWordIdsRef.current,
+          target.id,
+        );
+      }
+      renderPdfWordHighlights(
+        wordTargetsByPageRef.current,
+        highlightedWordIdsRef.current,
+        resolvedCard.status === 'ready' ? undefined : target.id,
+      );
     });
   }, []);
 
@@ -597,7 +765,10 @@ function App() {
 
         const rectangle = getPdfWordViewportRectangle(currentCard.target);
         if (!rectangle) return;
-        const nextPosition = positionWordCard(rectangle);
+        const nextPosition = positionWordCard(
+          rectangle,
+          wordCardRef.current?.scrollHeight,
+        );
         if (
           nextPosition.left === currentCard.left &&
           nextPosition.top === currentCard.top
@@ -658,6 +829,7 @@ function App() {
             y >= candidate.top &&
             y <= candidate.top + candidate.height,
         ) ?? target.rectangles[0];
+      if (!rectangle) return null;
 
       return {
         rectangle: new DOMRect(
@@ -674,7 +846,45 @@ function App() {
       const word = findWordAtPoint(event);
       if (!word) return;
       event.preventDefault();
-      selectPdfWord(word.target);
+
+      const isActiveWord =
+        activeCardRef.current?.target.id === word.target.id;
+      const isRememberedWord = highlightedWordIdsRef.current.has(
+        word.target.id,
+      );
+      if (isActiveWord) {
+        hiddenCachedWordIdsRef.current.add(word.target.id);
+        highlightedWordIdsRef.current = forgetPdfWordHighlight(
+          highlightedWordIdsRef.current,
+          word.target.id,
+        );
+        wordHelpRequestRef.current += 1;
+        activeCardRef.current = null;
+        setActiveCard(null);
+        renderPdfWordHighlights(
+          wordTargetsByPageRef.current,
+          highlightedWordIdsRef.current,
+        );
+        return;
+      }
+
+      if (isRememberedWord) {
+        renderPdfWordHighlights(
+          wordTargetsByPageRef.current,
+          highlightedWordIdsRef.current,
+          word.target.id,
+        );
+        showCard(word.target, word.rectangle);
+        return;
+      }
+
+      // Chrome's native double-click selection can expand after repeated
+      // clicks. Rebuild the exact measured ranges instead.
+      renderPdfWordHighlights(
+        wordTargetsByPageRef.current,
+        highlightedWordIdsRef.current,
+        word.target.id,
+      );
       showCard(word.target, word.rectangle);
     };
     const handleMouseDown = (event: MouseEvent) => {
@@ -746,6 +956,12 @@ function App() {
   return (
     <main className={`app-shell ${file ? 'has-document' : 'is-empty'}`}>
       <header className="browser-bar">
+        <img
+          className="navigation-logo"
+          src="/branding/linguaread-logo.png"
+          alt="LinguaRead"
+        />
+
         <div className="document-summary">
           <div className="document-path" title={fileName}>
             <span>LinguaRead</span>
@@ -757,26 +973,6 @@ function App() {
         </div>
 
         <div className="reader-tools">
-          <div className="level-selector" aria-label="Reading level fixed at B2">
-            <span className="level-label">Level</span>
-            {CEFR_LEVELS.map((level) => (
-              <button
-                key={level}
-                type="button"
-                className={level === 'B2' ? 'active' : ''}
-                disabled
-                aria-current={level === 'B2' ? 'true' : undefined}
-                title={
-                  level === 'B2'
-                    ? 'B2 is active'
-                    : 'Available in a later version'
-                }
-              >
-                {level}
-              </button>
-            ))}
-          </div>
-
           <button className="words-button" onClick={openSidePanel}>
             <span aria-hidden="true">▣</span>
             Dictionary
@@ -790,17 +986,6 @@ function App() {
           )}
         </div>
       </header>
-
-      {!isPdfHandoff && !file && (
-        <section className="document-header" aria-label="PDF controls">
-          <div>
-            <h1>LinguaRead</h1>
-            <p>Double-click a word to see more information.</p>
-          </div>
-
-          <FilePickerButton label="Choose PDF" onFile={handleFile} />
-        </section>
-      )}
 
       <p className="sr-only" aria-live="polite">
         {statusMessage}
@@ -835,13 +1020,10 @@ function App() {
         </div>
       )}
 
-      <div
-        className={`reader-workspace ${file ? 'has-document' : 'is-empty'}`}
-      >
+      <div className={`reader-workspace ${file ? 'has-document' : 'is-empty'}`}>
         {file && (
           <section className="reader-control-bar" aria-label="Reader controls">
             <div className="reader-control-intro">
-              <strong>LinguaRead</strong>
               <span>Double-click a word to see more information.</span>
             </div>
 
@@ -898,6 +1080,9 @@ function App() {
                 LinguaRead will display the PDF. Double-click a word to see more
                 information.
               </p>
+              {!isPdfHandoff && (
+                <FilePickerButton label="Choose PDF" onFile={handleFile} />
+              )}
             </div>
           ) : (
             <PdfReaderDocument
@@ -916,6 +1101,7 @@ function App() {
 
       {activeCard && (
         <aside
+          ref={wordCardRef}
           className="word-card"
           style={{ left: activeCard.left, top: activeCard.top }}
           role="dialog"
@@ -961,24 +1147,32 @@ function App() {
           )}
           {activeCard.status === 'ready' && activeCard.result ? (
             <dl className="word-details">
-              <div>
-                <dt>Level</dt>
-                <dd>{activeCard.result.cefr}</dd>
+              <div className="meaning-detail">
+                <dt className="sr-only">Meaning</dt>
+                <dd>
+                  {activeCard.result.partOfSpeech && (
+                    <span className="part-of-speech">
+                      [{activeCard.result.partOfSpeech}]
+                    </span>
+                  )}{' '}
+                  {activeCard.result.definition}
+                </dd>
               </div>
-              <div>
-                <dt>Simpler English</dt>
-                <dd>{activeCard.result.simplerEnglish}</dd>
+              <div className="example-detail">
+                <dt className="sr-only">Example</dt>
+                <dd>“{activeCard.result.contextualExample}”</dd>
               </div>
-              <div>
-                <dt>Meaning</dt>
-                <dd>{activeCard.result.definition}</dd>
-              </div>
-              <div>
-                <dt>Example</dt>
-                <dd>{activeCard.result.contextualExample}</dd>
-              </div>
-              <div>
-                <dt>Usage</dt>
+              <div className="usage-detail">
+                <dt>
+                  <svg
+                    className="usage-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 18h6M10 22h4M8.4 14.6A6 6 0 1 1 15.6 14.6C14.6 15.3 14 16.1 14 17h-4c0-.9-.6-1.7-1.6-2.4Z" />
+                  </svg>
+                  Usage
+                </dt>
                 <dd>{activeCard.result.usageNote}</dd>
               </div>
             </dl>
