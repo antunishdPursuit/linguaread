@@ -107,16 +107,35 @@ No Gemini API key is required in the extension build. The published private-beta
 
 To run a clone or fork with language help:
 
-1. Deploy the checked-in Worker to your own Cloudflare account.
+1. In `wrangler.jsonc`, replace `ALLOWED_ORIGINS` with this temporary valid
+   extension origin:
+
+   ```text
+   chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+   ```
+
+   Do not reuse the maintainer's extension origin.
 2. Set your own provider secret. Do not put it in `.env`, the extension, or the repository.
 
    ```powershell
    pnpm exec wrangler secret put GEMINI_API_KEY
    ```
 
-3. Replace `ALLOWED_ORIGINS` in `wrangler.jsonc` with the exact origin of your extension build. Do not reuse the maintainer's extension origin.
-4. Set `VITE_LINGUAREAD_LANGUAGE_BROKER_URL` in `.env` to your Worker endpoint.
-5. Run `pnpm broker:check`, deploy your Worker, and then run `pnpm build`.
+3. Run `pnpm broker:check`, then deploy the checked-in Worker to your own
+   Cloudflare account. Copy its Worker endpoint.
+4. Set `VITE_LINGUAREAD_LANGUAGE_BROKER_URL` in `.env` to that endpoint, run
+   `pnpm build`, and load `.output/chrome-mv3` from `chrome://extensions`.
+5. On the extension's card in `chrome://extensions`, copy the extension ID.
+6. In `wrangler.jsonc`, replace the temporary origin with
+   `chrome-extension://YOUR_EXTENSION_ID`, using the exact ID Chrome assigned.
+7. Run `pnpm broker:check` again and redeploy the Worker.
+8. Reload LinguaRead from `chrome://extensions`, then test uncached word help
+   with the public demo PDF.
+
+The first Worker deployment is only for obtaining the endpoint needed to build
+the extension. Its temporary allowed origin does not authorize the local
+extension. Word help works only after the Worker is redeployed with the exact
+origin assigned to that extension build.
 
 The Chrome Web Store build uses a maintainer-only `.env` value for its approved Worker endpoint. That value is not part of the public repository.
 
