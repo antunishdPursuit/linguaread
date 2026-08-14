@@ -101,7 +101,7 @@ Then open `chrome://extensions` in Chrome:
 
 The public repository does not contain a default maintainer Worker URL or a Gemini API key. A functional build receives its Worker endpoint from the ignored `.env` file. For a build configured with your own Worker, an uncached word-help request sends the selected word, its surrounding sentence, the fixed B2 level, bounded local dictionary candidates, and a random installation identifier to that Worker. The Worker sends the bounded request to Gemini 3.6 Flash using a server-side API key; the key is not included in the repository or extension. The complete PDF stays in the browser.
 
-No Gemini API key is required in the extension build. The published private-beta extension uses the maintainer's hosted service and its allowance of three successful new analyses per installation per UTC day. Local unpacked clones are not authorized to use that service. Cached results and failed provider requests do not consume the allowance.
+No Gemini API key is required in the extension build. The unlisted Chrome Web Store beta uses the maintainer's hosted service and its allowance of three successful new analyses per installation per UTC day. Local unpacked clones are not authorized to use that service. Cached results and failed provider requests do not consume the allowance.
 
 ### Use your own Worker
 
@@ -160,7 +160,7 @@ The generated Store package is `.output/linguaread-<version>-chrome.zip`. Genera
 - Ordinary website reading, OCR, pronunciation, dictionary export, alphabetical navigation, account sync, and additional language pairs are not part of the current release.
 - A safe Chinese translation is not guaranteed for every word and context.
 - Language choices and pinyin still need review by Mandarin-speaking testers.
-- The Chrome Web Store build is a private beta for trusted testers, not a public production release.
+- The Chrome Web Store build is an unlisted beta. Anyone with its direct Store link can install it, but it is not discoverable through Chrome Web Store search and is not a public production release.
 
 ## Contributors and acknowledgments
 
