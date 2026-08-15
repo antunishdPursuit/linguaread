@@ -4,6 +4,10 @@
 
 LinguaRead is a PDF-first Chrome reading aid for Mandarin-speaking students who read academic English. It gives focused help for a selected word while keeping the original English document visible.
 
+## Demo
+
+[Watch the LinguaRead demo on YouTube](https://youtu.be/fouIw9q5ms0)
+
 ## Why LinguaRead exists
 
 A reader may understand most of an English PDF but lose focus when a few unfamiliar words interrupt the page. Looking up each word in another application breaks the reading flow. Translating the full document removes too much of the English the reader is trying to practice.
