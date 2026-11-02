@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { handleRequest } from './index';
+import { MAX_REQUEST_BYTES } from './contract';
 
 const allowedOrigin =
   'chrome-extension://abcdefghijklmnopabcdefghijklmnop';
@@ -153,6 +154,66 @@ function successfulProvider() {
 }
 
 describe('Cloudflare language broker', () => {
+  it.each([undefined, '2'])(
+    'stops an oversized stream without trusting Content-Length %s',
+    async (contentLength) => {
+      let pulls = 0;
+      const cancel = vi.fn();
+      const stream = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          pulls += 1;
+          if (pulls <= 2) {
+            controller.enqueue(new Uint8Array(Math.floor(MAX_REQUEST_BYTES / 2) + 1));
+          } else {
+            controller.enqueue(new Uint8Array(100));
+            controller.close();
+          }
+        },
+        cancel,
+      }, { highWaterMark: 0 });
+      const headers = new Headers(createRequest().headers);
+      if (contentLength) headers.set('Content-Length', contentLength);
+      const init: RequestInit & { duplex: 'half' } = {
+        body: stream, duplex: 'half', headers, method: 'POST',
+      };
+      const providerFetch = successfulProvider();
+      const env = createEnv();
+      const response = await handleRequest(
+        new Request('https://broker.example/v1/word-help', init),
+        env, createContext(), { fetch: providerFetch },
+      );
+
+      expect(response.status).toBe(400);
+      expect(pulls).toBe(2);
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(providerFetch).not.toHaveBeenCalled();
+      expect(env.DAILY_ALLOWANCE.getByName).not.toHaveBeenCalled();
+    },
+  );
+
+  it('decodes valid UTF-8 split across request chunks', async () => {
+    const bytes = new TextEncoder().encode(JSON.stringify(validRequest));
+    const splitAt = bytes.findIndex((byte) => byte >= 128) + 1;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes.subarray(0, splitAt));
+        controller.enqueue(bytes.subarray(splitAt));
+        controller.close();
+      },
+    });
+    const init: RequestInit & { duplex: 'half' } = {
+      body: stream, duplex: 'half', headers: createRequest().headers, method: 'POST',
+    };
+    const providerFetch = successfulProvider();
+    const response = await handleRequest(
+      new Request('https://broker.example/v1/word-help', init),
+      createEnv(), createContext(), { fetch: providerFetch },
+    );
+
+    expect(response.status).toBe(200);
+    expect(providerFetch).toHaveBeenCalledOnce();
+  });
+
   it('validates, calls Gemini 3.6 Flash, and returns a bounded result', async () => {
     const providerFetch = successfulProvider();
     const context = createContext();

@@ -186,10 +186,29 @@ async function readJsonBody(request: Request): Promise<unknown> {
     throw new BrokerValidationError('The request is too large.');
   }
 
-  const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > MAX_REQUEST_BYTES) {
-    throw new BrokerValidationError('The request is too large.');
+  const reader = request.body?.getReader();
+  if (!reader) {
+    throw new BrokerValidationError('The request body is not valid JSON.');
   }
+
+  // Enforce the byte limit while reading; Content-Length can be absent or false.
+  const bytes = new Uint8Array(MAX_REQUEST_BYTES);
+  let receivedBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value.byteLength > MAX_REQUEST_BYTES - receivedBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new BrokerValidationError('The request is too large.');
+      }
+      bytes.set(value, receivedBytes);
+      receivedBytes += value.byteLength;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const text = new TextDecoder().decode(bytes.subarray(0, receivedBytes));
 
   try {
     return JSON.parse(text);
